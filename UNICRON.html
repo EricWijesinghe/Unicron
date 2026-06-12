@@ -1,0 +1,2392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNICRON — Architecture Command Deck V1</title>
+<style>
+  :root {
+    --bg: #07090d;
+    --bg2: #0a0e15;
+    --surface: #0e1219;
+    --surface2: #11161f;
+    --border: #1c2230;
+    --border-bright: #2a3346;
+    --accent: #00f5a0;
+    --accent2: #00b4ff;
+    --accent3: #ff4d6d;
+    --accent4: #f5a623;
+    --accent5: #bd00ff;
+    --accent6: #ff6b35;
+    --accent7: #00d4aa;
+    --accent8: #aad4ff;
+    --accent-gov: #ff9ecd;
+    --text: #e6edf6;
+    --muted: #6b7a90;
+    --muted2: #46566b;
+    --node-bg: #141a26;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    --st-plan: #4a86ff;
+    --st-active: #f5a623;
+    --st-done: #00f5a0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(1100px 700px at 12% -8%, rgba(0,180,255,0.10), transparent 60%),
+      radial-gradient(1000px 800px at 96% 4%, rgba(189,0,255,0.10), transparent 58%),
+      radial-gradient(900px 700px at 50% 118%, rgba(0,245,160,0.08), transparent 60%),
+      linear-gradient(180deg, var(--bg), var(--bg2));
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 0 0 80px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* fine grain overlay */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    opacity: 0.035; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 22px; }
+
+  /* ─── Sticky header ─────────────────────────────── */
+  header.deck {
+    position: sticky; top: 0; z-index: 40;
+    margin: 0 -22px 0;
+    padding: 16px 22px 14px;
+    background: linear-gradient(180deg, rgba(8,11,16,0.94), rgba(8,11,16,0.78));
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--border);
+  }
+  .titlebar { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 {
+    font-size: 24px; letter-spacing: 7px; font-weight: 800;
+    color: var(--accent); text-transform: uppercase;
+    text-shadow: 0 0 26px rgba(0,245,160,0.55);
+    display: flex; align-items: center; gap: 10px;
+  }
+  h1 .hex { filter: drop-shadow(0 0 10px var(--accent)); }
+  .ver {
+    font-size: 10px; letter-spacing: 2px; color: var(--accent2);
+    border: 1px solid var(--border-bright); border-radius: 999px;
+    padding: 3px 9px; background: rgba(0,180,255,0.06);
+  }
+  .subtitle { color: var(--muted); font-size: 11px; letter-spacing: 2.5px; margin: 4px 0 0; }
+
+  /* live stat strip */
+  .statstrip {
+    display: flex; gap: 10px; flex-wrap: wrap; margin: 13px 0 0;
+  }
+  .stat {
+    flex: 1 1 0; min-width: 96px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 9px; padding: 8px 12px; position: relative; overflow: hidden;
+  }
+  .stat::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent);
+  }
+  .stat.s2::after { background: var(--accent2); }
+  .stat.s3::after { background: var(--accent5); }
+  .stat.s4::after { background: var(--accent4); }
+  .stat.s5::after { background: var(--accent7); }
+  .stat .num { font-size: 21px; font-weight: 800; color: var(--text); letter-spacing: 1px; }
+  .stat .lbl { font-size: 9.5px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+
+  /* toolbar */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 13px 0 0; }
+  .search {
+    position: relative; flex: 1 1 320px; min-width: 220px;
+  }
+  .search input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border-bright);
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 9px 34px 9px 34px; border-radius: 8px; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,245,160,0.12); }
+  .search input::placeholder { color: var(--muted2); }
+  .search .ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+  .search .clr {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px;
+    display: none; padding: 2px 6px; border-radius: 5px;
+  }
+  .search .clr:hover { color: var(--accent3); background: var(--node-bg); }
+  .search.has-val .clr { display: block; }
+  .matchcount {
+    font-size: 10.5px; color: var(--accent2); letter-spacing: 1px; white-space: nowrap;
+    min-width: 64px;
+  }
+
+  button.tb {
+    background: var(--surface); border: 1px solid var(--border-bright);
+    color: var(--text); padding: 8px 13px; border-radius: 7px;
+    cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    transition: all .14s; white-space: nowrap;
+  }
+  button.tb:hover { background: var(--node-bg); border-color: var(--accent); color: var(--accent); }
+  button.tb:active { transform: translateY(1px); }
+  button.tb.alt:hover { border-color: var(--accent2); color: var(--accent2); }
+  .seg { display: inline-flex; border: 1px solid var(--border-bright); border-radius: 7px; overflow: hidden; }
+  .seg button {
+    background: var(--surface); border: none; border-right: 1px solid var(--border);
+    color: var(--muted); padding: 8px 11px; cursor: pointer; font-family: var(--mono);
+    font-size: 11px; letter-spacing: 1px; transition: all .14s;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button:hover { color: var(--text); background: var(--node-bg); }
+  .seg button.on { background: rgba(0,245,160,0.12); color: var(--accent); }
+  .spacer { flex: 1 1 20px; }
+
+  /* pillar jump chips */
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; padding: 14px 22px 4px; margin: 0 -22px; }
+  .chip {
+    font-size: 10.5px; letter-spacing: .8px; padding: 5px 10px; border-radius: 999px;
+    border: 1px solid var(--border-bright); background: var(--surface);
+    color: var(--muted); cursor: pointer; transition: all .14s; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip .d { width: 8px; height: 8px; border-radius: 50%; }
+  .chip:hover { color: var(--text); border-color: currentColor; }
+  .chip.active { background: var(--node-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-bright); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 2px 0; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); letter-spacing: .5px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  /* ─── Progress dashboard ────────────────────────── */
+  .dash {
+    margin-top: 18px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; display: grid;
+    grid-template-columns: auto 1fr; gap: 22px; align-items: center;
+  }
+  .ring { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .pct {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring .pct b { font-size: 21px; color: var(--accent); letter-spacing: 1px; }
+  .ring .pct span { font-size: 8.5px; color: var(--muted); letter-spacing: 1.5px; }
+  .bars { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 9px 18px; }
+  .barrow { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+  .barrow .nm { font-size: 10px; color: var(--muted); width: 30px; flex-shrink: 0; letter-spacing: .5px; }
+  .barrow:hover .nm { color: var(--text); }
+  .track { flex: 1; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .fill { height: 100%; width: 0; border-radius: 4px; transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .barrow .vv { font-size: 9.5px; color: var(--muted2); width: 58px; text-align: right; flex-shrink: 0; }
+
+  /* ─── Tree ──────────────────────────────────────── */
+  .treewrap { margin-top: 20px; }
+  .tree { width: 100%; }
+  details { margin: 2px 0; }
+  details > summary {
+    cursor: pointer; list-style: none; padding: 5px 10px 5px 8px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px; transition: background .15s, box-shadow .15s;
+    user-select: none; white-space: nowrap; position: relative;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary:hover { filter: brightness(1.18); }
+  details > summary .arrow { font-size: 9px; transition: transform .2s; opacity: .55; flex-shrink: 0; width: 10px; }
+  details[open] > summary .arrow { transform: rotate(90deg); }
+  details > .children { margin-left: 21px; border-left: 1px solid var(--border); padding-left: 11px; margin-top: 2px; }
+
+  /* child-count badge */
+  .cbadge {
+    margin-left: auto; font-size: 9.5px; letter-spacing: .5px; color: var(--muted2);
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 999px; padding: 1px 8px; flex-shrink: 0; transition: color .15s;
+  }
+  details > summary:hover .cbadge { color: var(--muted); }
+
+  .leaf {
+    padding: 3px 8px 3px 8px; color: var(--muted); font-size: 12px; border-radius: 5px;
+    white-space: nowrap; display: flex; align-items: center; gap: 8px; position: relative;
+  }
+  .leaf:hover { background: var(--node-bg); color: var(--text); }
+  .leaf .lc { content: ''; }
+  .leaf .lc::before { content: '◦'; color: var(--muted2); }
+  .leaf .ltxt { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+  /* status dot */
+  .sdot {
+    width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+    border: 1.5px solid var(--muted2); background: transparent; transition: all .15s;
+    position: relative;
+  }
+  .sdot:hover { transform: scale(1.25); border-color: var(--text); }
+  .leaf[data-st="plan"] .sdot { border-color: var(--st-plan); background: var(--st-plan); box-shadow: 0 0 8px rgba(74,134,255,.6); }
+  .leaf[data-st="active"] .sdot { border-color: var(--st-active); background: var(--st-active); box-shadow: 0 0 8px rgba(245,166,35,.6); }
+  .leaf[data-st="done"] .sdot { border-color: var(--st-done); background: var(--st-done); box-shadow: 0 0 8px rgba(0,245,160,.7); }
+  .leaf[data-st="done"] .ltxt { color: var(--muted2); text-decoration: line-through; text-decoration-color: var(--muted2); }
+  .leaf[data-st="done"]:hover .ltxt { color: var(--muted); }
+
+  /* Level styling */
+  .l0 > summary { background: linear-gradient(90deg,#0c1f1a,#0c1f1a 40%,rgba(12,31,26,0.4)); border: 1px solid var(--accent); color: var(--accent); font-size: 15px; font-weight: 800; letter-spacing: 2px; box-shadow: inset 0 0 30px rgba(0,245,160,0.08); }
+  .l1 { scroll-margin-top: 230px; }
+  .l1 > summary { font-size: 13px; font-weight: 800; letter-spacing: .5px; }
+  .l1.off > summary  { background: linear-gradient(90deg,#1c0d0d,transparent); border-left: 3px solid var(--accent3); color: var(--accent3); }
+  .l1.def > summary  { background: linear-gradient(90deg,#0d1420,transparent); border-left: 3px solid var(--accent2); color: var(--accent2); }
+  .l1.ai  > summary  { background: linear-gradient(90deg,#180d20,transparent); border-left: 3px solid var(--accent5); color: var(--accent5); }
+  .l1.col > summary  { background: linear-gradient(90deg,#1a1400,transparent); border-left: 3px solid var(--accent4); color: var(--accent4); }
+  .l1.cmp > summary  { background: linear-gradient(90deg,#0d1a12,transparent); border-left: 3px solid var(--accent7); color: var(--accent7); }
+  .l1.inf > summary  { background: linear-gradient(90deg,#1a1000,transparent); border-left: 3px solid var(--accent6); color: var(--accent6); }
+  .l1.gov > summary  { background: linear-gradient(90deg,#1a0d14,transparent); border-left: 3px solid var(--accent-gov); color: var(--accent-gov); }
+  .l1.plat > summary { background: linear-gradient(90deg,#0d1620,transparent); border-left: 3px solid var(--accent8); color: var(--accent8); }
+  .l2 > summary { background: var(--node-bg); color: var(--text); font-size: 12px; border-left: 2px solid var(--border-bright); }
+  .l3 > summary { background: transparent; color: #9fb0c4; font-size: 12px; }
+  .l3 > summary:hover { background: var(--node-bg); }
+
+  /* search highlight + filtering */
+  mark { background: rgba(245,166,35,0.28); color: #ffd98a; border-radius: 2px; padding: 0 1px; }
+  .hide { display: none !important; }
+  summary.hit, .leaf.hit { box-shadow: inset 0 0 0 1px rgba(245,166,35,0.45); }
+  .noresult { display: none; text-align: center; color: var(--muted); padding: 40px; letter-spacing: 1px; font-size: 12px; }
+  .noresult.show { display: block; }
+
+  /* compact density */
+  body.compact details > summary { padding: 2px 9px 2px 7px; }
+  body.compact .leaf { padding: 1px 8px; font-size: 11px; }
+  body.compact details { margin: 1px 0; }
+  body.compact .sdot { width: 11px; height: 11px; }
+
+  /* staggered load reveal for pillars */
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .l1 { animation: rise .5s both; }
+
+  .footer { text-align: center; color: var(--muted2); font-size: 10px; letter-spacing: 1.5px; margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .footer b { color: var(--muted); }
+
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 6px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4760; }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface2); border: 1px solid var(--accent); color: var(--accent);
+    padding: 10px 18px; border-radius: 9px; font-size: 11.5px; letter-spacing: 1px;
+    z-index: 100; opacity: 0; transition: all .25s; pointer-events: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .l1.rust > summary { background: linear-gradient(90deg,#0d1a0d,transparent); border-left: 3px solid #ff6600; color: #ff6600; }
+
+  /* Rust tag pills */
+  .rtag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; letter-spacing: .5px; padding: 1px 6px; border-radius: 4px;
+    border: 1px solid var(--border); color: var(--muted2); margin-left: 4px; flex-shrink: 0;
+  }
+  .rtag.nightly  { border-color: rgba(189,0,255,.4); color: var(--accent5); }
+  .rtag.unsafe   { border-color: rgba(255,77,109,.4); color: var(--accent3); }
+  .rtag.nostd    { border-color: rgba(0,212,170,.4); color: var(--accent7); }
+  .rtag.async    { border-color: rgba(0,180,255,.4); color: var(--accent2); }
+  .rtag.simd     { border-color: rgba(245,166,35,.4); color: var(--accent4); }
+  .rtag.wasm     { border-color: rgba(0,180,255,.4); color: var(--accent2); }
+  .rtag.pure     { border-color: rgba(0,245,160,.4); color: var(--accent); }
+  .rtag.gpu      { border-color: rgba(255,107,53,.4); color: var(--accent6); }
+  .rtag.dist     { border-color: rgba(255,158,205,.4); color: var(--accent-gov); }
+  .rtag.test     { border-color: rgba(170,212,255,.4); color: var(--accent8); }
+
+  /* Rationale tooltip */
+  .leaf.has-why { cursor: help; }
+  .leaf.has-why .ltxt { border-bottom: 1px dashed var(--muted2); }
+  .why-box {
+    position: fixed; z-index: 200;
+    max-width: 380px; background: var(--surface2); border: 1px solid var(--border-bright);
+    border-radius: 9px; padding: 11px 14px; font-size: 11.5px; color: #cdd7e4; line-height: 1.65;
+    box-shadow: 0 16px 48px rgba(0,0,0,.6); pointer-events: none; opacity: 0;
+    transition: opacity .12s; white-space: normal;
+  }
+  .why-box.show { opacity: 1; }
+  .why-box .wh { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .iso-line { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border); font-size: 11px; color: var(--accent3); }
+
+  /* Tier header for Rust section */
+  .rust-tier > summary { background: rgba(255,102,0,0.06); border-left: 2px solid rgba(255,102,0,.5); color: #ff9944; font-size: 12.5px; }
+
+    h1 { font-size: 19px; letter-spacing: 4px; }
+    .dash { grid-template-columns: 1fr; justify-items: center; }
+    .bars { width: 100%; }
+    .stat .num { font-size: 17px; }
+  }
+  @media print {
+    body { background: #fff; color: #000; }
+    header.deck, .toolbar, .chips, .dash, .footer, .toast, .sdot { display: none !important; }
+    details[open] > .children { display: block; }
+    .leaf, summary { color: #000 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="deck">
+    <div class="titlebar">
+      <h1><span class="hex">⬡</span> UNICRON</h1>
+      <span class="ver">ARCHITECTURE V1 · COMMAND DECK</span>
+    </div>
+    <div class="subtitle">UNIFIED OFFENSIVE &amp; DEFENSIVE SECURITY PLATFORM — INTERACTIVE BLUEPRINT · RUST WORKSPACE EDITION</div>
+
+    <div class="statstrip">
+      <div class="stat"><div class="num" id="st-pillars">—</div><div class="lbl">Pillars</div></div>
+      <div class="stat s2"><div class="num" id="st-domains">—</div><div class="lbl">Domains</div></div>
+      <div class="stat s3"><div class="num" id="st-groups">—</div><div class="lbl">Sub-groups</div></div>
+      <div class="stat s4"><div class="num" id="st-modules">—</div><div class="lbl">Modules</div></div>
+      <div class="stat s5"><div class="num" id="st-done">—</div><div class="lbl">Shipped</div></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search" id="searchBox">
+        <span class="ico">⌕</span>
+        <input id="q" type="text" placeholder="Search modules…  ( / to focus )" autocomplete="off" spellcheck="false">
+        <button class="clr" id="clrBtn" title="Clear">×</button>
+      </div>
+      <span class="matchcount" id="matchCount"></span>
+      <div class="seg" title="Expand to depth">
+        <button data-lvl="1">L1</button>
+        <button data-lvl="2">L2</button>
+        <button data-lvl="3">L3</button>
+      </div>
+      <button class="tb" id="expandAll">▶ EXPAND</button>
+      <button class="tb" id="collapseAll">◀ COLLAPSE</button>
+      <span class="spacer"></span>
+      <button class="tb alt" id="densityBtn">▢ COMPACT</button>
+      <button class="tb alt" id="exportBtn">⤓ EXPORT</button>
+      <button class="tb alt" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Offensive</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Defensive</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent5)"></div>AI / ML</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent4)"></div>Collaboration</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent7)"></div>Compliance</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent6)"></div>Infrastructure</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-gov)"></div>Gov / Military</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent8)"></div>Platform Core</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ff6600"></div>Rust Impl</div>
+    <div class="legend-item" style="margin-left:auto"><div class="legend-dot" style="background:var(--st-plan)"></div>Planned</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--st-active)"></div>In&nbsp;progress</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--st-done)"></div>Shipped</div>
+  </div>
+
+  <div class="dash">
+    <div class="ring">
+      <svg width="92" height="92" viewBox="0 0 92 92">
+        <circle cx="46" cy="46" r="40" fill="none" stroke="var(--border)" stroke-width="7"></circle>
+        <circle id="ringFill" cx="46" cy="46" r="40" fill="none" stroke="var(--accent)" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"
+                style="transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1); filter: drop-shadow(0 0 6px rgba(0,245,160,.5));"></circle>
+      </svg>
+      <div class="pct"><b id="ringPct">0%</b><span>BUILT</span></div>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <div class="treewrap">
+    <div class="tree">
+<details class="l0" open>
+<summary><span class="arrow">▶</span>🌐 UNICRON — Unified Offensive & Defensive Security Platform</summary>
+<div class="children">
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 1 — OFFENSIVE SECURITY
+══════════════════════════════════════════════════════ -->
+<details class="l1 off">
+<summary><span class="arrow">▶</span>⚔️  PILLAR 1 — OFFENSIVE SECURITY ENGINE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.1 Reconnaissance & OSINT</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>1.1.1 Passive Recon</summary><div class="children">
+      <div class="leaf">1.1.1.1 WHOIS / RDAP harvester</div>
+      <div class="leaf">1.1.1.2 DNS enumeration (A, MX, NS, TXT, AXFR)</div>
+      <div class="leaf">1.1.1.3 Certificate transparency log parser</div>
+      <div class="leaf">1.1.1.4 Shodan / Censys / Fofa integration</div>
+      <div class="leaf">1.1.1.5 BGP / ASN mapping engine</div>
+      <div class="leaf">1.1.1.6 Historical DNS / IP pivot database</div>
+      <div class="leaf">1.1.1.7 Google dork automation (Custom Search API)</div>
+      <div class="leaf">1.1.1.8 Bing / DuckDuckGo dork engine</div>
+      <div class="leaf">1.1.1.9 GitHub / GitLab secret scanner</div>
+      <div class="leaf">1.1.1.10 Pastebin / paste site monitor</div>
+      <div class="leaf">1.1.1.11 Dark web leak index crawler</div>
+      <div class="leaf">1.1.1.12 Social media profile aggregator</div>
+      <div class="leaf">1.1.1.13 LinkedIn company graph builder</div>
+      <div class="leaf">1.1.1.14 Job posting intelligence extractor</div>
+      <div class="leaf">1.1.1.15 Email pattern & breached credential harvester</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.1.2 Active Recon</summary><div class="children">
+      <div class="leaf">1.1.2.1 Nmap / Masscan wrapper & scheduler</div>
+      <div class="leaf">1.1.2.2 Zmap high-speed IPv4/IPv6 scanner</div>
+      <div class="leaf">1.1.2.3 Service / banner fingerprinting</div>
+      <div class="leaf">1.1.2.4 OS fingerprinting (TCP/IP stack analysis)</div>
+      <div class="leaf">1.1.2.5 HTTP/HTTPS technology stack detector</div>
+      <div class="leaf">1.1.2.6 WAF / CDN / load-balancer detection</div>
+      <div class="leaf">1.1.2.7 Subdomain brute-force (ffuf / amass)</div>
+      <div class="leaf">1.1.2.8 Virtual-host enumeration</div>
+      <div class="leaf">1.1.2.9 S3 / GCS / Azure Blob bucket discovery</div>
+      <div class="leaf">1.1.2.10 API endpoint mapper (Swagger / OpenAPI)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.1.3 Wireless Recon</summary><div class="children">
+      <div class="leaf">1.1.3.1 802.11 a/b/g/n/ac/ax passive monitor</div>
+      <div class="leaf">1.1.3.2 SSID / BSSID mapper & geo-tagger</div>
+      <div class="leaf">1.1.3.3 Bluetooth / BLE device scanner</div>
+      <div class="leaf">1.1.3.4 Zigbee / Z-Wave spectrum analyzer</div>
+      <div class="leaf">1.1.3.5 Cellular (GSM/LTE/5G) base-station mapper</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.2 Vulnerability Scanning</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>1.2.1 Network Vulnerability Scanners</summary><div class="children">
+      <div class="leaf">1.2.1.1 OpenVAS / GVM integration layer</div>
+      <div class="leaf">1.2.1.2 Nessus API connector</div>
+      <div class="leaf">1.2.1.3 Qualys VMDR bridge</div>
+      <div class="leaf">1.2.1.4 Rapid7 InsightVM adapter</div>
+      <div class="leaf">1.2.1.5 Custom CVE correlation engine</div>
+      <div class="leaf">1.2.1.6 CVSS v3/v4 scoring calculator</div>
+      <div class="leaf">1.2.1.7 EPSS exploit probability integrator</div>
+      <div class="leaf">1.2.1.8 Zero-day candidate detector</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.2.2 Web Application Scanners</summary><div class="children">
+      <div class="leaf">1.2.2.1 OWASP ZAP automation framework</div>
+      <div class="leaf">1.2.2.2 Burp Suite REST API integration</div>
+      <div class="leaf">1.2.2.3 Nikto wrapper & result normalizer</div>
+      <div class="leaf">1.2.2.4 Nuclei template engine (custom + community)</div>
+      <div class="leaf">1.2.2.5 SQLmap orchestrator</div>
+      <div class="leaf">1.2.2.6 XSS / CSRF / SSRF / XXE auto-fuzzer</div>
+      <div class="leaf">1.2.2.7 GraphQL introspection & attack module</div>
+      <div class="leaf">1.2.2.8 REST / SOAP API security tester</div>
+      <div class="leaf">1.2.2.9 JWT attack suite (alg confusion, key inject)</div>
+      <div class="leaf">1.2.2.10 OAuth 2.0 / OIDC flow auditor</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.2.3 Cloud Security Scanners</summary><div class="children">
+      <div class="leaf">1.2.3.1 AWS misconfiguration scanner (ScoutSuite)</div>
+      <div class="leaf">1.2.3.2 Azure security posture analyzer</div>
+      <div class="leaf">1.2.3.3 GCP audit module</div>
+      <div class="leaf">1.2.3.4 Kubernetes CIS benchmark tester</div>
+      <div class="leaf">1.2.3.5 Docker / container image scanner</div>
+      <div class="leaf">1.2.3.6 Terraform / IaC misconfiguration linter</div>
+      <div class="leaf">1.2.3.7 Serverless function attack surface mapper</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.3 Exploitation Framework</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>1.3.1 Core Exploitation Engine</summary><div class="children">
+      <div class="leaf">1.3.1.1 Metasploit RPC integration & module loader</div>
+      <div class="leaf">1.3.1.2 Custom exploit compiler / packer</div>
+      <div class="leaf">1.3.1.3 Exploit-DB automated PoC retriever</div>
+      <div class="leaf">1.3.1.4 GitHub advisory exploit linker</div>
+      <div class="leaf">1.3.1.5 Binary exploitation toolkit (BOF, ROP chains)</div>
+      <div class="leaf">1.3.1.6 Heap grooming / UAF exploit primitives</div>
+      <div class="leaf">1.3.1.7 Format string exploit generator</div>
+      <div class="leaf">1.3.1.8 Kernel exploit staging environment</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.3.2 Web Exploitation</summary><div class="children">
+      <div class="leaf">1.3.2.1 Automated SQL injection exploit chains</div>
+      <div class="leaf">1.3.2.2 RCE via deserialization (Java, PHP, .NET)</div>
+      <div class="leaf">1.3.2.3 SSTI auto-exploit (Jinja2, Twig, Freemarker)</div>
+      <div class="leaf">1.3.2.4 File upload bypass & webshell deployer</div>
+      <div class="leaf">1.3.2.5 Path traversal chaining engine</div>
+      <div class="leaf">1.3.2.6 IDOR enumeration & exploit module</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.3.3 Network Exploitation</summary><div class="children">
+      <div class="leaf">1.3.3.1 SMB exploit module (EternalBlue, PrintNightmare)</div>
+      <div class="leaf">1.3.3.2 RDP / VNC brute-force & exploit staging</div>
+      <div class="leaf">1.3.3.3 SSH key harvesting & hijacking</div>
+      <div class="leaf">1.3.3.4 SNMP community string abuser</div>
+      <div class="leaf">1.3.3.5 LDAP injection & bind attack module</div>
+      <div class="leaf">1.3.3.6 Kerberoasting / AS-REP roasting engine</div>
+      <div class="leaf">1.3.3.7 DCSync / Golden Ticket forge module</div>
+      <div class="leaf">1.3.3.8 Pass-the-hash / pass-the-ticket automator</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.4 Post-Exploitation</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>1.4.1 Command & Control (C2)</summary><div class="children">
+      <div class="leaf">1.4.1.1 Cobalt Strike profile emulator</div>
+      <div class="leaf">1.4.1.2 Sliver C2 integration</div>
+      <div class="leaf">1.4.1.3 Havoc C2 bridge</div>
+      <div class="leaf">1.4.1.4 Custom HTTP/S beacon builder</div>
+      <div class="leaf">1.4.1.5 DNS-over-HTTPS C2 channel</div>
+      <div class="leaf">1.4.1.6 ICMP / TCP covert channel builder</div>
+      <div class="leaf">1.4.1.7 Domain fronting automation module</div>
+      <div class="leaf">1.4.1.8 C2 traffic profile randomizer</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.4.2 Privilege Escalation</summary><div class="children">
+      <div class="leaf">1.4.2.1 Linux privesc automation (LinPEAS wrapper)</div>
+      <div class="leaf">1.4.2.2 Windows privesc automation (WinPEAS wrapper)</div>
+      <div class="leaf">1.4.2.3 SUID/SGID binary abuser</div>
+      <div class="leaf">1.4.2.4 Cron job / scheduled task hijacker</div>
+      <div class="leaf">1.4.2.5 Token impersonation module</div>
+      <div class="leaf">1.4.2.6 UAC bypass techniques library</div>
+      <div class="leaf">1.4.2.7 Active Directory delegation abuse</div>
+      <div class="leaf">1.4.2.8 Cloud IAM privilege escalation chains</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.4.3 Lateral Movement</summary><div class="children">
+      <div class="leaf">1.4.3.1 BloodHound / SharpHound data collector</div>
+      <div class="leaf">1.4.3.2 AD attack-path visualizer & planner</div>
+      <div class="leaf">1.4.3.3 WMI / DCOM remote execution module</div>
+      <div class="leaf">1.4.3.4 PsExec / SMB lateral movement toolkit</div>
+      <div class="leaf">1.4.3.5 RDP session hijacking module</div>
+      <div class="leaf">1.4.3.6 SSH agent forwarding abuser</div>
+      <div class="leaf">1.4.3.7 Container escape & cluster pivot tools</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.4.4 Persistence</summary><div class="children">
+      <div class="leaf">1.4.4.1 Registry / startup persistence injector</div>
+      <div class="leaf">1.4.4.2 DLL hijacking payload generator</div>
+      <div class="leaf">1.4.4.3 Scheduled task / cron backdoor builder</div>
+      <div class="leaf">1.4.4.4 Bootkit / rootkit staging module</div>
+      <div class="leaf">1.4.4.5 UEFI implant simulation</div>
+      <div class="leaf">1.4.4.6 Cloud persistence (Lambda backdoor, etc.)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.4.5 Data Exfiltration</summary><div class="children">
+      <div class="leaf">1.4.5.1 Chunked HTTP/S exfil module</div>
+      <div class="leaf">1.4.5.2 DNS tunneling exfiltration engine</div>
+      <div class="leaf">1.4.5.3 Steganography-based exfil (image / audio)</div>
+      <div class="leaf">1.4.5.4 Cloud storage exfil (S3, OneDrive, GDrive)</div>
+      <div class="leaf">1.4.5.5 Encrypted archive & chunked transfer</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.5 Social Engineering Suite</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>1.5.1 Phishing</summary><div class="children">
+      <div class="leaf">1.5.1.1 Gophish campaign manager integration</div>
+      <div class="leaf">1.5.1.2 AI-generated spear-phish email composer</div>
+      <div class="leaf">1.5.1.3 Domain lookalike / homoglyph generator</div>
+      <div class="leaf">1.5.1.4 SMTP relay & delivery infrastructure manager</div>
+      <div class="leaf">1.5.1.5 Credential-capture portal builder</div>
+      <div class="leaf">1.5.1.6 SMS / vishing campaign orchestrator</div>
+      <div class="leaf">1.5.1.7 QR-code phishing generator</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>1.5.2 Payload Delivery</summary><div class="children">
+      <div class="leaf">1.5.2.1 Office macro payload builder (VBA/XLM)</div>
+      <div class="leaf">1.5.2.2 HTA / scriptlet dropper generator</div>
+      <div class="leaf">1.5.2.3 ISO / LNK phishing kit</div>
+      <div class="leaf">1.5.2.4 PDF exploit embed toolkit</div>
+      <div class="leaf">1.5.2.5 Browser-in-the-Browser (BitB) kit</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.6 Physical & Hardware Attacks</summary><div class="children">
+    <div class="leaf">1.6.1 USB Rubber Ducky / O.MG payload generator</div>
+    <div class="leaf">1.6.2 Flipper Zero script builder</div>
+    <div class="leaf">1.6.3 RFID / NFC cloning module</div>
+    <div class="leaf">1.6.4 HID injection payload library</div>
+    <div class="leaf">1.6.5 LAN Turtle / Bash Bunny automation</div>
+    <div class="leaf">1.6.6 SDR-based signal capture & replay</div>
+    <div class="leaf">1.6.7 Evil twin AP builder (hostapd-wpe)</div>
+    <div class="leaf">1.6.8 BIOS / UEFI firmware dumper & analyzer</div>
+    <div class="leaf">1.6.9 Side-channel attack simulation (timing, power)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.7 Evasion & Anti-Forensics</summary><div class="children">
+    <div class="leaf">1.7.1 AV / EDR evasion payload generator</div>
+    <div class="leaf">1.7.2 AMSI bypass module library</div>
+    <div class="leaf">1.7.3 Process hollowing / injection builder</div>
+    <div class="leaf">1.7.4 Polymorphic shellcode encoder</div>
+    <div class="leaf">1.7.5 Living-off-the-land (LOLBins) technique library</div>
+    <div class="leaf">1.7.6 SIEM alert suppression simulator</div>
+    <div class="leaf">1.7.7 Log tampering & artifact wiper</div>
+    <div class="leaf">1.7.8 Memory-only (fileless) payload stager</div>
+    <div class="leaf">1.7.9 Sandbox detection & evasion module</div>
+    <div class="leaf">1.7.10 Traffic obfuscation (JA3 fingerprint spoofer)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.8 Password Attacks</summary><div class="children">
+    <div class="leaf">1.8.1 Hashcat GPU cluster orchestrator</div>
+    <div class="leaf">1.8.2 John the Ripper distributed wrapper</div>
+    <div class="leaf">1.8.3 Rainbow table manager</div>
+    <div class="leaf">1.8.4 Custom wordlist / rule generator</div>
+    <div class="leaf">1.8.5 Credential stuffing engine</div>
+    <div class="leaf">1.8.6 Password spraying orchestrator</div>
+    <div class="leaf">1.8.7 NTDS.dit extraction & cracking pipeline</div>
+    <div class="leaf">1.8.8 SAM / LSASS dump processor</div>
+    <div class="leaf">1.8.9 Biometric brute-force simulation</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>1.9 Red Team Operations</summary><div class="children">
+    <div class="leaf">1.9.1 MITRE ATT&CK TTP planner</div>
+    <div class="leaf">1.9.2 Kill-chain scenario builder</div>
+    <div class="leaf">1.9.3 Purple-team exercise coordinator</div>
+    <div class="leaf">1.9.4 Red team infrastructure provisioner (Terraform)</div>
+    <div class="leaf">1.9.5 Op timeline & evidence tracker</div>
+    <div class="leaf">1.9.6 Adversary simulation profile library (APT groups)</div>
+    <div class="leaf">1.9.7 Assumed breach scenario launcher</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 2 — DEFENSIVE SECURITY
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>🛡️  PILLAR 2 — DEFENSIVE SECURITY ENGINE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.1 Security Information & Event Management (SIEM)</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>2.1.1 Log Ingestion</summary><div class="children">
+      <div class="leaf">2.1.1.1 Syslog / CEF / LEEF receiver</div>
+      <div class="leaf">2.1.1.2 Windows Event Log collector (WEF)</div>
+      <div class="leaf">2.1.1.3 Kafka / Logstash pipeline integrator</div>
+      <div class="leaf">2.1.1.4 Fluent Bit / Fluentd adapter</div>
+      <div class="leaf">2.1.1.5 Cloud-native log bridge (CloudTrail, Azure Monitor)</div>
+      <div class="leaf">2.1.1.6 Endpoint log forwarder (Wazuh agent)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>2.1.2 Correlation Engine</summary><div class="children">
+      <div class="leaf">2.1.2.1 Real-time rule engine (Sigma rule executor)</div>
+      <div class="leaf">2.1.2.2 Behavioral baseline builder</div>
+      <div class="leaf">2.1.2.3 Anomaly scoring pipeline</div>
+      <div class="leaf">2.1.2.4 Cross-source event correlator</div>
+      <div class="leaf">2.1.2.5 Time-series pattern detector</div>
+      <div class="leaf">2.1.2.6 Kill-chain stage classifier</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>2.1.3 Threat Intelligence Integration</summary><div class="children">
+      <div class="leaf">2.1.3.1 MISP feed ingestion & enrichment</div>
+      <div class="leaf">2.1.3.2 VirusTotal / OTX / ThreatFox connector</div>
+      <div class="leaf">2.1.3.3 STIX/TAXII feed manager</div>
+      <div class="leaf">2.1.3.4 IOC / IOA deduplication engine</div>
+      <div class="leaf">2.1.3.5 Threat actor attribution module</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.2 Intrusion Detection / Prevention (IDS/IPS)</summary><div class="children">
+    <div class="leaf">2.2.1 Snort 3 / Suricata rule manager</div>
+    <div class="leaf">2.2.2 Zeek (Bro) network analyzer integration</div>
+    <div class="leaf">2.2.3 Network traffic baseline generator</div>
+    <div class="leaf">2.2.4 Deep packet inspection (DPI) engine</div>
+    <div class="leaf">2.2.5 Encrypted traffic analysis (TLS fingerprinting)</div>
+    <div class="leaf">2.2.6 Protocol anomaly detector</div>
+    <div class="leaf">2.2.7 East-west lateral movement detector</div>
+    <div class="leaf">2.2.8 Inline blocking / quarantine action engine</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.3 Endpoint Detection & Response (EDR)</summary><div class="children">
+    <div class="leaf">2.3.1 Lightweight kernel sensor (eBPF / ETW)</div>
+    <div class="leaf">2.3.2 Process tree visualizer</div>
+    <div class="leaf">2.3.3 Memory forensics scanner (Volatility integration)</div>
+    <div class="leaf">2.3.4 File integrity monitoring (FIM)</div>
+    <div class="leaf">2.3.5 Registry monitoring & alerter</div>
+    <div class="leaf">2.3.6 USB / removable media control</div>
+    <div class="leaf">2.3.7 YARA rule scanner engine</div>
+    <div class="leaf">2.3.8 Automated endpoint isolation trigger</div>
+    <div class="leaf">2.3.9 Velociraptor integration (DFIR)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.4 Digital Forensics & Incident Response (DFIR)</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>2.4.1 Evidence Collection</summary><div class="children">
+      <div class="leaf">2.4.1.1 Disk image acquisition (dd / ewf)</div>
+      <div class="leaf">2.4.1.2 RAM dump collector</div>
+      <div class="leaf">2.4.1.3 Network capture archiver (PCAP)</div>
+      <div class="leaf">2.4.1.4 Chain-of-custody ledger (hash + timestamp)</div>
+      <div class="leaf">2.4.1.5 Cloud trail evidence packager</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>2.4.2 Analysis Tools</summary><div class="children">
+      <div class="leaf">2.4.2.1 Autopsy / Sleuth Kit integration</div>
+      <div class="leaf">2.4.2.2 Timeline generator (plaso / log2timeline)</div>
+      <div class="leaf">2.4.2.3 Artifact parser (prefetch, LNK, MFT, USN)</div>
+      <div class="leaf">2.4.2.4 Browser history & cache extractor</div>
+      <div class="leaf">2.4.2.5 Email forensics module (PST / MBOX)</div>
+      <div class="leaf">2.4.2.6 Malware unpacker sandbox</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>2.4.3 Incident Playbooks</summary><div class="children">
+      <div class="leaf">2.4.3.1 Ransomware containment playbook</div>
+      <div class="leaf">2.4.3.2 Data breach response playbook</div>
+      <div class="leaf">2.4.3.3 Insider threat investigation playbook</div>
+      <div class="leaf">2.4.3.4 APT intrusion playbook</div>
+      <div class="leaf">2.4.3.5 BEC / phishing investigation playbook</div>
+      <div class="leaf">2.4.3.6 Playbook builder & editor (CACAO v2)</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.5 Threat Hunting</summary><div class="children">
+    <div class="leaf">2.5.1 Hypothesis-driven hunt launcher</div>
+    <div class="leaf">2.5.2 Sigma hunt rule composer</div>
+    <div class="leaf">2.5.3 KQL / SPL / EQL query builder</div>
+    <div class="leaf">2.5.4 MITRE ATT&CK heatmap generator</div>
+    <div class="leaf">2.5.5 Anomaly discovery workbench</div>
+    <div class="leaf">2.5.6 Hunt evidence packager & exporter</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.6 Security Orchestration, Automation & Response (SOAR)</summary><div class="children">
+    <div class="leaf">2.6.1 Visual playbook / runbook editor</div>
+    <div class="leaf">2.6.2 Case management system</div>
+    <div class="leaf">2.6.3 Alert triage & deduplication engine</div>
+    <div class="leaf">2.6.4 Ticketing system integration (Jira, ServiceNow)</div>
+    <div class="leaf">2.6.5 Automated enrichment pipeline</div>
+    <div class="leaf">2.6.6 Bi-directional SIEM feedback loop</div>
+    <div class="leaf">2.6.7 SLA tracker & escalation manager</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.7 Vulnerability Management</summary><div class="children">
+    <div class="leaf">2.7.1 Asset inventory & CMDB sync</div>
+    <div class="leaf">2.7.2 Continuous scan scheduler</div>
+    <div class="leaf">2.7.3 Risk-ranked remediation queue</div>
+    <div class="leaf">2.7.4 Patch management integration (WSUS, Ansible)</div>
+    <div class="leaf">2.7.5 Compensating control tracker</div>
+    <div class="leaf">2.7.6 SLA-based remediation enforcement</div>
+    <div class="leaf">2.7.7 Vendor advisory monitor (NVD, vendor feeds)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>2.8 Deception Technology</summary><div class="children">
+    <div class="leaf">2.8.1 Honeypot deploy orchestrator (T-Pot)</div>
+    <div class="leaf">2.8.2 Honeytoken / canary token manager</div>
+    <div class="leaf">2.8.3 Deceptive credential injector</div>
+    <div class="leaf">2.8.4 Fake DNS / SMB responder</div>
+    <div class="leaf">2.8.5 Breadcrumb trail planner</div>
+    <div class="leaf">2.8.6 Attacker attribution capture module</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 3 — AI / ML ENGINE
+══════════════════════════════════════════════════════ -->
+<details class="l1 ai">
+<summary><span class="arrow">▶</span>🤖  PILLAR 3 — AI / ML ANALYSIS ENGINE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.1 AI Core Infrastructure</summary><div class="children">
+    <div class="leaf">3.1.1 LLM gateway (OpenAI / Anthropic / local Ollama)</div>
+    <div class="leaf">3.1.2 Model fine-tuning pipeline (security domain)</div>
+    <div class="leaf">3.1.3 RAG (retrieval-augmented generation) engine</div>
+    <div class="leaf">3.1.4 Embedding store (CVE, TTPs, logs)</div>
+    <div class="leaf">3.1.5 Prompt injection guard</div>
+    <div class="leaf">3.1.6 On-premise LLM deployment (air-gap support)</div>
+    <div class="leaf">3.1.7 Model registry & version control</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.2 Automated Threat Detection</summary><div class="children">
+    <div class="leaf">3.2.1 UEBA (user & entity behavior analytics)</div>
+    <div class="leaf">3.2.2 Unsupervised anomaly detection (Isolation Forest)</div>
+    <div class="leaf">3.2.3 Graph neural network lateral movement detector</div>
+    <div class="leaf">3.2.4 Time-series threat prediction (LSTM)</div>
+    <div class="leaf">3.2.5 NLP-based log classification</div>
+    <div class="leaf">3.2.6 Malware classification CNN (binary PE analysis)</div>
+    <div class="leaf">3.2.7 Phishing email detector (transformer model)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.3 AI-Augmented Penetration Testing</summary><div class="children">
+    <div class="leaf">3.3.1 Autonomous recon orchestrator</div>
+    <div class="leaf">3.3.2 Attack-path recommendation engine</div>
+    <div class="leaf">3.3.3 Automated exploit chaining planner</div>
+    <div class="leaf">3.3.4 Fuzzing mutation strategy optimizer (RL)</div>
+    <div class="leaf">3.3.5 Vulnerability prioritization model</div>
+    <div class="leaf">3.3.6 Payload obfuscation optimizer (GAN)</div>
+    <div class="leaf">3.3.7 Natural language pentest brief generator</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.4 AI-Powered Reporting</summary><div class="children">
+    <div class="leaf">3.4.1 Auto-generated executive summary writer</div>
+    <div class="leaf">3.4.2 Technical finding narrative generator</div>
+    <div class="leaf">3.4.3 Remediation recommendation synthesizer</div>
+    <div class="leaf">3.4.4 Risk score explainability module (SHAP)</div>
+    <div class="leaf">3.4.5 Multi-language report translator</div>
+    <div class="leaf">3.4.6 Trend analysis & regression detector</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.5 Malware Analysis AI</summary><div class="children">
+    <div class="leaf">3.5.1 Static analysis ML classifier</div>
+    <div class="leaf">3.5.2 Dynamic sandbox behavior analyzer</div>
+    <div class="leaf">3.5.3 Code similarity / clustering engine</div>
+    <div class="leaf">3.5.4 C2 communication pattern extractor</div>
+    <div class="leaf">3.5.5 Unpacking & deobfuscation assistant</div>
+    <div class="leaf">3.5.6 Malware family lineage tracker</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>3.6 AI Safety & Governance</summary><div class="children">
+    <div class="leaf">3.6.1 Model output auditor</div>
+    <div class="leaf">3.6.2 Bias & hallucination detector</div>
+    <div class="leaf">3.6.3 Dual-use content filter</div>
+    <div class="leaf">3.6.4 AI decision explainability dashboard</div>
+    <div class="leaf">3.6.5 Model drift monitor</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 4 — COLLABORATION
+══════════════════════════════════════════════════════ -->
+<details class="l1 col">
+<summary><span class="arrow">▶</span>🤝  PILLAR 4 — COLLABORATION PLATFORM</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>4.1 Real-Time Collaboration</summary><div class="children">
+    <div class="leaf">4.1.1 Shared terminal / live session multiplexer</div>
+    <div class="leaf">4.1.2 Real-time op notebook (Jupyter-style)</div>
+    <div class="leaf">4.1.3 Collaborative mind-map / attack-tree editor</div>
+    <div class="leaf">4.1.4 Live screen / tool output sharing</div>
+    <div class="leaf">4.1.5 Encrypted team chat (E2E)</div>
+    <div class="leaf">4.1.6 In-platform voice & video channel</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>4.2 Project & Task Management</summary><div class="children">
+    <div class="leaf">4.2.1 Engagement scope definition module</div>
+    <div class="leaf">4.2.2 Task board (Kanban) per operation</div>
+    <div class="leaf">4.2.3 Operator assignment & RBAC enforcement</div>
+    <div class="leaf">4.2.4 Time tracking & billing module</div>
+    <div class="leaf">4.2.5 SLA / milestone tracker</div>
+    <div class="leaf">4.2.6 Rules of engagement (ROE) digital contract</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>4.3 Knowledge Management</summary><div class="children">
+    <div class="leaf">4.3.1 Technique / tactic wiki (ATT&CK aligned)</div>
+    <div class="leaf">4.3.2 Tool recipe library</div>
+    <div class="leaf">4.3.3 Finding template repository</div>
+    <div class="leaf">4.3.4 Lessons learned database</div>
+    <div class="leaf">4.3.5 CVE research notes system</div>
+    <div class="leaf">4.3.6 Vector diagram & architecture library</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>4.4 Client Portal</summary><div class="children">
+    <div class="leaf">4.4.1 Read-only engagement dashboard</div>
+    <div class="leaf">4.4.2 Real-time finding notification feed</div>
+    <div class="leaf">4.4.3 Remediation tracking interface</div>
+    <div class="leaf">4.4.4 Secure report delivery vault</div>
+    <div class="leaf">4.4.5 Retesting request workflow</div>
+    <div class="leaf">4.4.6 Client evidence upload portal</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>4.5 Audit Trail & Evidence Management</summary><div class="children">
+    <div class="leaf">4.5.1 Immutable operation log (append-only)</div>
+    <div class="leaf">4.5.2 Screenshot / screen-record auto-capture</div>
+    <div class="leaf">4.5.3 Command history exporter</div>
+    <div class="leaf">4.5.4 Cryptographic evidence integrity verifier</div>
+    <div class="leaf">4.5.5 Legal hold & export module</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 5 — COMPLIANCE & REPORTING
+══════════════════════════════════════════════════════ -->
+<details class="l1 cmp">
+<summary><span class="arrow">▶</span>📋  PILLAR 5 — COMPLIANCE & REPORTING ENGINE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>5.1 Compliance Frameworks</summary><div class="children">
+    <div class="leaf">5.1.1 NIST CSF 2.0 assessment module</div>
+    <div class="leaf">5.1.2 NIST SP 800-53 control mapper</div>
+    <div class="leaf">5.1.3 ISO/IEC 27001/27002 gap analyzer</div>
+    <div class="leaf">5.1.4 PCI-DSS v4 scoping & assessment tool</div>
+    <div class="leaf">5.1.5 HIPAA security rule auditor</div>
+    <div class="leaf">5.1.6 SOC 2 Type I/II evidence collector</div>
+    <div class="leaf">5.1.7 GDPR / CCPA data discovery module</div>
+    <div class="leaf">5.1.8 FedRAMP control validation kit</div>
+    <div class="leaf">5.1.9 CMMC v2 practice checker</div>
+    <div class="leaf">5.1.10 CIS Benchmark automated assessor</div>
+    <div class="leaf">5.1.11 DORA (EU financial) readiness module</div>
+    <div class="leaf">5.1.12 NIS2 directive compliance mapper</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>5.2 Report Generation</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>5.2.1 Report Templates</summary><div class="children">
+      <div class="leaf">5.2.1.1 Executive summary template</div>
+      <div class="leaf">5.2.1.2 Technical pentest report template</div>
+      <div class="leaf">5.2.1.3 Red team debrief template</div>
+      <div class="leaf">5.2.1.4 Vulnerability assessment report template</div>
+      <div class="leaf">5.2.1.5 Incident response report template</div>
+      <div class="leaf">5.2.1.6 Compliance assessment report template</div>
+      <div class="leaf">5.2.1.7 Board-level risk briefing template</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>5.2.2 Output Formats</summary><div class="children">
+      <div class="leaf">5.2.2.1 PDF renderer (branded)</div>
+      <div class="leaf">5.2.2.2 Word / DOCX generator</div>
+      <div class="leaf">5.2.2.3 HTML interactive report</div>
+      <div class="leaf">5.2.2.4 JSON / XML machine-readable export</div>
+      <div class="leaf">5.2.2.5 SARIF export for CI/CD pipelines</div>
+      <div class="leaf">5.2.2.6 PowerPoint executive deck builder</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>5.3 Risk Quantification</summary><div class="children">
+    <div class="leaf">5.3.1 FAIR model risk calculator</div>
+    <div class="leaf">5.3.2 CVSS / EPSS aggregated business risk scorer</div>
+    <div class="leaf">5.3.3 Attack surface reduction tracker</div>
+    <div class="leaf">5.3.4 Historical risk trend dashboard</div>
+    <div class="leaf">5.3.5 Cost-of-breach estimator</div>
+    <div class="leaf">5.3.6 Board-ready risk heat map</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>5.4 Continuous Compliance Monitoring</summary><div class="children">
+    <div class="leaf">5.4.1 Automated drift detection engine</div>
+    <div class="leaf">5.4.2 Policy-as-code enforcer (OPA / Rego)</div>
+    <div class="leaf">5.4.3 Scheduled audit task scheduler</div>
+    <div class="leaf">5.4.4 Exception & waiver management workflow</div>
+    <div class="leaf">5.4.5 Auditor read-only access portal</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 6 — INFRASTRUCTURE & SCALABILITY
+══════════════════════════════════════════════════════ -->
+<details class="l1 inf">
+<summary><span class="arrow">▶</span>⚙️  PILLAR 6 — INFRASTRUCTURE & SCALABILITY</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.1 Core Platform Architecture</summary><div class="children">
+    <div class="leaf">6.1.1 Microservices framework (gRPC + REST)</div>
+    <div class="leaf">6.1.2 Event bus / message broker (Kafka)</div>
+    <div class="leaf">6.1.3 API gateway & rate limiter</div>
+    <div class="leaf">6.1.4 Service mesh (Istio / Linkerd)</div>
+    <div class="leaf">6.1.5 Distributed task queue (Celery / Temporal)</div>
+    <div class="leaf">6.1.6 Plugin / module hot-loader</div>
+    <div class="leaf">6.1.7 Multi-tenant isolation layer</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.2 Data Storage</summary><div class="children">
+    <div class="leaf">6.2.1 Time-series DB (ClickHouse / TimescaleDB)</div>
+    <div class="leaf">6.2.2 Document store (Elasticsearch / OpenSearch)</div>
+    <div class="leaf">6.2.3 Relational DB (PostgreSQL cluster)</div>
+    <div class="leaf">6.2.4 Graph DB (Neo4j — for AD & attack paths)</div>
+    <div class="leaf">6.2.5 Object storage (MinIO / S3-compatible)</div>
+    <div class="leaf">6.2.6 In-memory cache (Redis cluster)</div>
+    <div class="leaf">6.2.7 Encrypted secrets vault (HashiCorp Vault)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.3 Container & Orchestration</summary><div class="children">
+    <div class="leaf">6.3.1 Kubernetes cluster manager</div>
+    <div class="leaf">6.3.2 Helm chart repository</div>
+    <div class="leaf">6.3.3 Auto-scaling policy engine (HPA / KEDA)</div>
+    <div class="leaf">6.3.4 Namespace isolation per tenant</div>
+    <div class="leaf">6.3.5 GPU workload scheduler (for AI/ML)</div>
+    <div class="leaf">6.3.6 Air-gapped / offline deployment kit</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.4 Networking</summary><div class="children">
+    <div class="leaf">6.4.1 Operator VPN fabric (WireGuard mesh)</div>
+    <div class="leaf">6.4.2 Agent proxy / jump-host manager</div>
+    <div class="leaf">6.4.3 Tor / I2P anonymization layer</div>
+    <div class="leaf">6.4.4 Redirector infrastructure manager</div>
+    <div class="leaf">6.4.5 Geo-distributed node provisioner</div>
+    <div class="leaf">6.4.6 IPv6 full-stack support</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.5 DevSecOps Pipeline</summary><div class="children">
+    <div class="leaf">6.5.1 SAST integration (Semgrep, CodeQL)</div>
+    <div class="leaf">6.5.2 DAST integration (ZAP / Nuclei in CI)</div>
+    <div class="leaf">6.5.3 SCA / dependency audit (Trivy, Syft)</div>
+    <div class="leaf">6.5.4 Container image signing (Cosign)</div>
+    <div class="leaf">6.5.5 SBOM generation (CycloneDX / SPDX)</div>
+    <div class="leaf">6.5.6 GitOps security gate (ArgoCD)</div>
+    <div class="leaf">6.5.7 Secrets scanning in CI (TruffleHog)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.6 Identity & Access Management</summary><div class="children">
+    <div class="leaf">6.6.1 SSO / SAML 2.0 / OIDC provider</div>
+    <div class="leaf">6.6.2 Multi-factor authentication engine</div>
+    <div class="leaf">6.6.3 Hardware token (FIDO2 / YubiKey) support</div>
+    <div class="leaf">6.6.4 RBAC / ABAC policy engine</div>
+    <div class="leaf">6.6.5 Privileged access management (PAM)</div>
+    <div class="leaf">6.6.6 Just-in-time access provisioner</div>
+    <div class="leaf">6.6.7 Session recording & audit</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.7 Observability</summary><div class="children">
+    <div class="leaf">6.7.1 Metrics pipeline (Prometheus / VictoriaMetrics)</div>
+    <div class="leaf">6.7.2 Distributed tracing (Jaeger / Tempo)</div>
+    <div class="leaf">6.7.3 Log aggregation (Loki / ELK)</div>
+    <div class="leaf">6.7.4 Dashboard builder (Grafana)</div>
+    <div class="leaf">6.7.5 Alertmanager & PagerDuty bridge</div>
+    <div class="leaf">6.7.6 SLO / SLA monitoring engine</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>6.8 Resilience & High Availability</summary><div class="children">
+    <div class="leaf">6.8.1 Multi-region active-active failover</div>
+    <div class="leaf">6.8.2 Disaster recovery automation</div>
+    <div class="leaf">6.8.3 Chaos engineering integration (Chaos Mesh)</div>
+    <div class="leaf">6.8.4 Backup & restore orchestrator</div>
+    <div class="leaf">6.8.5 Data replication manager</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 7 — MILITARY / GOVERNMENT GRADE
+══════════════════════════════════════════════════════ -->
+<details class="l1 gov">
+<summary><span class="arrow">▶</span>🏛️  PILLAR 7 — MILITARY & GOVERNMENT-GRADE REQUIREMENTS</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.1 Classification & Data Handling</summary><div class="children">
+    <div class="leaf">7.1.1 Multi-level security (MLS) labeling engine</div>
+    <div class="leaf">7.1.2 UNCLASSIFIED / CUI / SECRET / TS/SCI data tiers</div>
+    <div class="leaf">7.1.3 Cross-domain solution (CDS) integration point</div>
+    <div class="leaf">7.1.4 Data-at-rest encryption (FIPS 140-3 validated)</div>
+    <div class="leaf">7.1.5 Data-in-transit encryption (TLS 1.3 + quantum-safe)</div>
+    <div class="leaf">7.1.6 Classified media sanitization workflow</div>
+    <div class="leaf">7.1.7 TEMPEST / RF emanation hardening guide</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.2 Certification & Accreditation</summary><div class="children">
+    <div class="leaf">7.2.1 FedRAMP High authorization package builder</div>
+    <div class="leaf">7.2.2 DoD IL4 / IL5 / IL6 readiness module</div>
+    <div class="leaf">7.2.3 DISA STIG auto-checker & hardener</div>
+    <div class="leaf">7.2.4 FIPS 140-3 cryptographic module registry</div>
+    <div class="leaf">7.2.5 Common Criteria EAL4+ documentation kit</div>
+    <div class="leaf">7.2.6 RMF (NIST SP 800-37) workflow engine</div>
+    <div class="leaf">7.2.7 ATO (Authority to Operate) package assembler</div>
+    <div class="leaf">7.2.8 IATT / IATO tracking module</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.3 Air-Gap & Offline Operations</summary><div class="children">
+    <div class="leaf">7.3.1 Fully offline deployment (no internet dependency)</div>
+    <div class="leaf">7.3.2 One-way data diode transfer module</div>
+    <div class="leaf">7.3.3 Sneakernet evidence package exporter</div>
+    <div class="leaf">7.3.4 Offline threat intel update mechanism</div>
+    <div class="leaf">7.3.5 Local AI model runtime (no cloud API)</div>
+    <div class="leaf">7.3.6 Secure USB provisioning toolkit</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.4 Operational Security (OPSEC)</summary><div class="children">
+    <div class="leaf">7.4.1 Operator anonymization layer (Tor / VPN chaining)</div>
+    <div class="leaf">7.4.2 Attribution obfuscation planner</div>
+    <div class="leaf">7.4.3 Covert channel management console</div>
+    <div class="leaf">7.4.4 Counterintelligence trip-wire manager</div>
+    <div class="leaf">7.4.5 OPSEC checklist enforcement engine</div>
+    <div class="leaf">7.4.6 Need-to-know access enforcement</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.5 Critical Infrastructure Modules</summary><div class="children">
+    <div class="leaf">7.5.1 ICS / SCADA protocol analyzer (Modbus, DNP3, IEC 61850)</div>
+    <div class="leaf">7.5.2 OT network passive scanner (Claroty / Dragos style)</div>
+    <div class="leaf">7.5.3 PLC firmware analysis toolkit</div>
+    <div class="leaf">7.5.4 HMI attack simulation module</div>
+    <div class="leaf">7.5.5 Smart grid / power system test environment</div>
+    <div class="leaf">7.5.6 Water treatment system simulation</div>
+    <div class="leaf">7.5.7 Nuclear facility safety system isolation model</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.6 Cryptography & PKI</summary><div class="children">
+    <div class="leaf">7.6.1 Internal PKI / CA management (EJBCA)</div>
+    <div class="leaf">7.6.2 Post-quantum crypto migration planner (CRYSTALS-Kyber)</div>
+    <div class="leaf">7.6.3 Hardware security module (HSM) integration</div>
+    <div class="leaf">7.6.4 Key ceremony workflow (M-of-N)</div>
+    <div class="leaf">7.6.5 Certificate lifecycle manager</div>
+    <div class="leaf">7.6.6 Crypto agility assessment tool</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.7 Supply Chain Security</summary><div class="children">
+    <div class="leaf">7.7.1 Hardware bill-of-materials (HBOM) tracker</div>
+    <div class="leaf">7.7.2 Firmware / software provenance verifier</div>
+    <div class="leaf">7.7.3 Trusted supplier registry</div>
+    <div class="leaf">7.7.4 Counterfeit component detection module</div>
+    <div class="leaf">7.7.5 SBOM ingestion & vulnerability mapper</div>
+    <div class="leaf">7.7.6 NDAA Section 889 compliance checker</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>7.8 Training & Simulation</summary><div class="children">
+    <div class="leaf">7.8.1 Cyber range environment provisioner</div>
+    <div class="leaf">7.8.2 Red-vs-Blue team exercise scheduler</div>
+    <div class="leaf">7.8.3 Scenario library (nation-state, APT, insider)</div>
+    <div class="leaf">7.8.4 Trainee progress tracker & certifier</div>
+    <div class="leaf">7.8.5 Live-fire exercise safety interlock</div>
+    <div class="leaf">7.8.6 After-action report (AAR) generator</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 8 — PLATFORM CORE
+══════════════════════════════════════════════════════ -->
+<details class="l1 plat">
+<summary><span class="arrow">▶</span>🖥️  PILLAR 8 — PLATFORM CORE & USER EXPERIENCE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>8.1 User Interface</summary><div class="children">
+    <div class="leaf">8.1.1 Web dashboard (React / Vue SPA)</div>
+    <div class="leaf">8.1.2 Desktop app (Electron / Tauri)</div>
+    <div class="leaf">8.1.3 Mobile companion app (iOS / Android)</div>
+    <div class="leaf">8.1.4 CLI (Unicron shell — all features accessible)</div>
+    <div class="leaf">8.1.5 Terminal UI (TUI — tmux-style)</div>
+    <div class="leaf">8.1.6 Dark / light / high-contrast theme engine</div>
+    <div class="leaf">8.1.7 Accessibility (WCAG 2.1 AA) module</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>8.2 Plugin & Extension System</summary><div class="children">
+    <div class="leaf">8.2.1 Plugin SDK (Python / Go / Rust)</div>
+    <div class="leaf">8.2.2 Community plugin marketplace</div>
+    <div class="leaf">8.2.3 Plugin sandbox & security review</div>
+    <div class="leaf">8.2.4 Signed plugin distribution (Sigstore)</div>
+    <div class="leaf">8.2.5 Custom script runner (bash / Python)</div>
+    <div class="leaf">8.2.6 Webhook / integration API</div>
+    <div class="leaf">8.2.7 Third-party tool wrapper framework</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>8.3 Licensing & Deployment Models</summary><div class="children">
+    <div class="leaf">8.3.1 Community edition (OSS)</div>
+    <div class="leaf">8.3.2 Professional license (single operator)</div>
+    <div class="leaf">8.3.3 Enterprise license (multi-team)</div>
+    <div class="leaf">8.3.4 Government / classified edition</div>
+    <div class="leaf">8.3.5 SaaS cloud-hosted deployment</div>
+    <div class="leaf">8.3.6 On-premise self-hosted deployment</div>
+    <div class="leaf">8.3.7 Hybrid cloud-on-prem split model</div>
+    <div class="leaf">8.3.8 Air-gapped sovereign cloud deployment</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>8.4 Integrations Catalog</summary><div class="children">
+    <div class="leaf">8.4.1 Jira / Confluence integration</div>
+    <div class="leaf">8.4.2 ServiceNow ITSM bridge</div>
+    <div class="leaf">8.4.3 Slack / Teams / Discord notification adapter</div>
+    <div class="leaf">8.4.4 PagerDuty / Opsgenie alert forwarder</div>
+    <div class="leaf">8.4.5 Splunk / QRadar / Sentinel SIEM connector</div>
+    <div class="leaf">8.4.6 Crowdstrike / SentinelOne EDR API bridge</div>
+    <div class="leaf">8.4.7 Tenable / Qualys VM platform sync</div>
+    <div class="leaf">8.4.8 Defect Dojo finding importer</div>
+    <div class="leaf">8.4.9 Azure DevOps / GitHub Actions CI gate</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>8.5 Documentation & Support</summary><div class="children">
+    <div class="leaf">8.5.1 Interactive in-app docs & tutorials</div>
+    <div class="leaf">8.5.2 AI-powered help assistant</div>
+    <div class="leaf">8.5.3 Video walkthrough library</div>
+    <div class="leaf">8.5.4 Public API reference (OpenAPI 3.1)</div>
+    <div class="leaf">8.5.5 Community forum integration</div>
+    <div class="leaf">8.5.6 Versioned changelog & release notes</div>
+    <div class="leaf">8.5.7 Professional services & training catalogue</div>
+  </div></details>
+
+</div></details>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 9 — EXPLOIT DEVELOPMENT & VULNERABILITY RESEARCH
+══════════════════════════════════════════════════════ -->
+<details class="l1 off">
+<summary><span class="arrow">▶</span>🔬  PILLAR 9 — EXPLOIT DEVELOPMENT & VULNERABILITY RESEARCH</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.1 Binary Exploitation Research</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>9.1.1 Memory Corruption Primitives</summary><div class="children">
+      <div class="leaf">9.1.1.1 Stack buffer overflow exploit builder (x86/x64/ARM)</div>
+      <div class="leaf">9.1.1.2 Heap overflow / heap spray toolkit</div>
+      <div class="leaf">9.1.1.3 Use-after-free (UAF) primitive harness</div>
+      <div class="leaf">9.1.1.4 Double-free exploitation lab</div>
+      <div class="leaf">9.1.1.5 Out-of-bounds read/write primitive generator</div>
+      <div class="leaf">9.1.1.6 Integer overflow / underflow synthesizer</div>
+      <div class="leaf">9.1.1.7 Type confusion exploit framework</div>
+      <div class="leaf">9.1.1.8 Format string exploit lab (printf, syslog)</div>
+      <div class="leaf">9.1.1.9 NULL pointer dereference escalation toolkit</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.1.2 ROP / JOP / SROP Chain Building</summary><div class="children">
+      <div class="leaf">9.1.2.1 Automated ROP gadget finder (ROPgadget / Ropper)</div>
+      <div class="leaf">9.1.2.2 JOP (jump-oriented programming) chain builder</div>
+      <div class="leaf">9.1.2.3 SROP (sigreturn-oriented programming) module</div>
+      <div class="leaf">9.1.2.4 Stack pivot gadget discovery engine</div>
+      <div class="leaf">9.1.2.5 ret2libc / ret2plt chainer</div>
+      <div class="leaf">9.1.2.6 ret2dlresolve exploit generator</div>
+      <div class="leaf">9.1.2.7 ASLR leak gadget detector & chainer</div>
+      <div class="leaf">9.1.2.8 CFI bypass technique library (CET, shadow stack)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.1.3 Heap Exploitation Techniques</summary><div class="children">
+      <div class="leaf">9.1.3.1 Tcache poisoning exploit generator (glibc 2.31+)</div>
+      <div class="leaf">9.1.3.2 Fastbin dup / fastbin attack builder</div>
+      <div class="leaf">9.1.3.3 Unsafe unlink exploitation module</div>
+      <div class="leaf">9.1.3.4 House of techniques library (Force, Spirit, Lore, etc.)</div>
+      <div class="leaf">9.1.3.5 Largebin attack chain synthesizer</div>
+      <div class="leaf">9.1.3.6 Jemalloc / tcmalloc specific attack modules</div>
+      <div class="leaf">9.1.3.7 Windows heap exploitation (LFH, segment heap)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.1.4 Kernel Exploitation</summary><div class="children">
+      <div class="leaf">9.1.4.1 Linux kernel race condition exploit harness</div>
+      <div class="leaf">9.1.4.2 SLUB / SLAB allocator attack toolkit</div>
+      <div class="leaf">9.1.4.3 Kernel heap spray & grooming framework</div>
+      <div class="leaf">9.1.4.4 msg_msg / setxattr / seq_file primitive builder</div>
+      <div class="leaf">9.1.4.5 Dirty Pipe / Dirty Cow class exploit template</div>
+      <div class="leaf">9.1.4.6 Windows kernel pool overflow lab (KPTI bypass)</div>
+      <div class="leaf">9.1.4.7 Driver (IOCTL) fuzzing & exploit development</div>
+      <div class="leaf">9.1.4.8 Hypervisor escape research framework</div>
+      <div class="leaf">9.1.4.9 eBPF verifier bypass research toolkit</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.2 Fuzzing & Dynamic Analysis</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>9.2.1 Coverage-Guided Fuzzing</summary><div class="children">
+      <div class="leaf">9.2.1.1 AFL++ campaign orchestrator & corpus manager</div>
+      <div class="leaf">9.2.1.2 LibFuzzer harness generator (C/C++/Rust)</div>
+      <div class="leaf">9.2.1.3 Honggfuzz multi-process coordinator</div>
+      <div class="leaf">9.2.1.4 OSS-Fuzz integration & crash triage</div>
+      <div class="leaf">9.2.1.5 Coverage-map visualizer (edge / block coverage)</div>
+      <div class="leaf">9.2.1.6 Dictionary / token-based mutation engine</div>
+      <div class="leaf">9.2.1.7 Corpus distillation & minimizer</div>
+      <div class="leaf">9.2.1.8 Persistent mode harness scaffolder</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.2.2 Specialized Fuzzers</summary><div class="children">
+      <div class="leaf">9.2.2.1 Network protocol fuzzer (Boofuzz / Mutiny)</div>
+      <div class="leaf">9.2.2.2 File format fuzzer (PDF, Office, media)</div>
+      <div class="leaf">9.2.2.3 Browser DOM / JS engine fuzzer (Domato style)</div>
+      <div class="leaf">9.2.2.4 IPC / D-Bus / COM fuzzing harness</div>
+      <div class="leaf">9.2.2.5 Kernel syscall fuzzer (Syzkaller integration)</div>
+      <div class="leaf">9.2.2.6 Firmware fuzzing via QEMU emulation</div>
+      <div class="leaf">9.2.2.7 Smart contract fuzzer (Echidna / Medusa)</div>
+      <div class="leaf">9.2.2.8 gRPC / Protobuf service fuzzer</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.2.3 Crash Triage & Root Cause Analysis</summary><div class="children">
+      <div class="leaf">9.2.3.1 Automated crash deduplication (exploitability hash)</div>
+      <div class="leaf">9.2.3.2 ASAN / MSAN / UBSAN integration & symbolizer</div>
+      <div class="leaf">9.2.3.3 Valgrind / Memcheck automated triage</div>
+      <div class="leaf">9.2.3.4 GDB / LLDB scriptable crash analyzer</div>
+      <div class="leaf">9.2.3.5 Exploitability classifier (KASAN, WinDbg !exploitable)</div>
+      <div class="leaf">9.2.3.6 Root-cause bisection (git bisect automation)</div>
+      <div class="leaf">9.2.3.7 Crash minimizer & reproducer generator</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.3 Reverse Engineering</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>9.3.1 Static Reverse Engineering</summary><div class="children">
+      <div class="leaf">9.3.1.1 Ghidra project manager & script runner</div>
+      <div class="leaf">9.3.1.2 IDA Pro / Binary Ninja plugin bridge</div>
+      <div class="leaf">9.3.1.3 Radare2 / Rizin analysis pipeline</div>
+      <div class="leaf">9.3.1.4 Decompiler output normalizer & diff engine</div>
+      <div class="leaf">9.3.1.5 Symbol / function name recovery (FLIRT / RTTI)</div>
+      <div class="leaf">9.3.1.6 Import / export table enricher</div>
+      <div class="leaf">9.3.1.7 CFG (control flow graph) extractor & visualizer</div>
+      <div class="leaf">9.3.1.8 Binary diffing engine (BinDiff / Diaphora)</div>
+      <div class="leaf">9.3.1.9 .NET / Java / Python bytecode decompiler bridge</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.3.2 Dynamic Reverse Engineering</summary><div class="children">
+      <div class="leaf">9.3.2.1 Frida dynamic instrumentation harness</div>
+      <div class="leaf">9.3.2.2 DynamoRIO / Pin taint analysis framework</div>
+      <div class="leaf">9.3.2.3 API trace recorder (Wtrace / strace / ltrace)</div>
+      <div class="leaf">9.3.2.4 QEMU full-system trace recorder</div>
+      <div class="leaf">9.3.2.5 Time-travel debugging integration (WinDbg TTD / rr)</div>
+      <div class="leaf">9.3.2.6 Heap snapshot & allocation tracker</div>
+      <div class="leaf">9.3.2.7 Network packet ↔ code correlation mapper</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.3.3 Obfuscation & Anti-Analysis Defeat</summary><div class="children">
+      <div class="leaf">9.3.3.1 Packer / protector detection & unpacking pipeline</div>
+      <div class="leaf">9.3.3.2 VM-based obfuscation deobfuscator (VMProtect, Themida)</div>
+      <div class="leaf">9.3.3.3 Control-flow flattening de-obfuscator</div>
+      <div class="leaf">9.3.3.4 String decryption automation (emulation-based)</div>
+      <div class="leaf">9.3.3.5 Anti-debug / anti-VM bypass patcher</div>
+      <div class="leaf">9.3.3.6 Opaque predicate resolver</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.4 Symbolic Execution & Formal Analysis</summary><div class="children">
+    <div class="leaf">9.4.1 angr symbolic execution harness builder</div>
+    <div class="leaf">9.4.2 KLEE / S2E integration for path exploration</div>
+    <div class="leaf">9.4.3 Triton concolic engine bridge</div>
+    <div class="leaf">9.4.4 Constraint solver integration (Z3 / Boolector)</div>
+    <div class="leaf">9.4.5 Vulnerability-condition path synthesizer</div>
+    <div class="leaf">9.4.6 Automatic exploit input generator (AEG)</div>
+    <div class="leaf">9.4.7 Program state invariant extractor</div>
+    <div class="leaf">9.4.8 Binary analysis pipeline automation (BAP / McSema)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.5 Shellcode & Payload Engineering</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>9.5.1 Shellcode Development</summary><div class="children">
+      <div class="leaf">9.5.1.1 x86/x64 shellcode assembler & encoder (pwntools)</div>
+      <div class="leaf">9.5.1.2 ARM / AArch64 shellcode toolkit</div>
+      <div class="leaf">9.5.1.3 MIPS / RISC-V shellcode builder</div>
+      <div class="leaf">9.5.1.4 Position-independent code (PIC) enforcer</div>
+      <div class="leaf">9.5.1.5 Bad-byte elimination & encoder chain</div>
+      <div class="leaf">9.5.1.6 Alphanumeric / printable-only shellcode encoder</div>
+      <div class="leaf">9.5.1.7 Syscall-direct shellcode generator (no libc)</div>
+      <div class="leaf">9.5.1.8 Staged / stageless shellcode framework</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>9.5.2 Reflective & In-Memory Techniques</summary><div class="children">
+      <div class="leaf">9.5.2.1 Reflective DLL injection builder (sRDI)</div>
+      <div class="leaf">9.5.2.2 Process injection technique library (38+ methods)</div>
+      <div class="leaf">9.5.2.3 PE-to-shellcode converter</div>
+      <div class="leaf">9.5.2.4 Module stomping / overloaded mapping module</div>
+      <div class="leaf">9.5.2.5 Thread hijacking injection builder</div>
+      <div class="leaf">9.5.2.6 Early bird injection technique</div>
+      <div class="leaf">9.5.2.7 Heap-based code execution staging</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.6 Exploit Mitigation Research</summary><div class="children">
+    <div class="leaf">9.6.1 ASLR effectiveness analyzer & bypass lab</div>
+    <div class="leaf">9.6.2 Stack canary bypass technique library</div>
+    <div class="leaf">9.6.3 NX / DEP bypass research environment</div>
+    <div class="leaf">9.6.4 SafeStack / ShadowCallStack analysis</div>
+    <div class="leaf">9.6.5 RELRO (Partial / Full) bypass technique lab</div>
+    <div class="leaf">9.6.6 PIE binary exploitation under ASLR</div>
+    <div class="leaf">9.6.7 Control Flow Integrity (CFI) bypass research</div>
+    <div class="leaf">9.6.8 Intel CET / IBT / SHSTK bypass analysis</div>
+    <div class="leaf">9.6.9 Heap isolation mitigation bypass research</div>
+    <div class="leaf">9.6.10 Pointer authentication (PAC / MTE) bypass research</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.7 Vulnerability Discovery Research</summary><div class="children">
+    <div class="leaf">9.7.1 Code audit / variant analysis scanner</div>
+    <div class="leaf">9.7.2 Semgrep / CodeQL custom rule authoring IDE</div>
+    <div class="leaf">9.7.3 Taint analysis framework (data-flow tracking)</div>
+    <div class="leaf">9.7.4 Source-sink vulnerability path finder</div>
+    <div class="leaf">9.7.5 Patch diffing & 1-day vulnerability extractor</div>
+    <div class="leaf">9.7.6 CVE hunting dashboard (NVD + vendor advisories)</div>
+    <div class="leaf">9.7.7 Bug bounty target research aggregator</div>
+    <div class="leaf">9.7.8 Zero-day triage & CVSS pre-scoring module</div>
+    <div class="leaf">9.7.9 Responsible disclosure workflow manager</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.8 Browser & Client-Side Exploitation</summary><div class="children">
+    <div class="leaf">9.8.1 Browser exploit development environment (V8 / SpiderMonkey)</div>
+    <div class="leaf">9.8.2 JIT spraying research lab</div>
+    <div class="leaf">9.8.3 Sandbox escape technique library (renderer → broker)</div>
+    <div class="leaf">9.8.4 Browser heap grooming & shape spray toolkit</div>
+    <div class="leaf">9.8.5 Electron app exploitation framework</div>
+    <div class="leaf">9.8.6 PDF / Office viewer exploitation harness</div>
+    <div class="leaf">9.8.7 MitM SSL stripping & HSTS bypass lab</div>
+    <div class="leaf">9.8.8 Prototype pollution exploitation engine</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>9.9 Protocol & Cryptographic Vulnerability Research</summary><div class="children">
+    <div class="leaf">9.9.1 TLS downgrade / BEAST / POODLE / Lucky13 test suite</div>
+    <div class="leaf">9.9.2 SSH algorithm weakness exploiter</div>
+    <div class="leaf">9.9.3 Custom protocol parser fuzzer & state machine builder</div>
+    <div class="leaf">9.9.4 Padding oracle attack automation (CBC mode)</div>
+    <div class="leaf">9.9.5 Timing oracle exploit framework</div>
+    <div class="leaf">9.9.6 Bleichenbacher RSA attack module</div>
+    <div class="leaf">9.9.7 Hash length extension attack builder</div>
+    <div class="leaf">9.9.8 ECB block rearrangement / cut-and-paste exploit</div>
+    <div class="leaf">9.9.9 Crypto implementation side-channel analyzer</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 10 — ADVANCED DEFENSIVE AUDITING
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>🔍  PILLAR 10 — ADVANCED DEFENSIVE AUDITING & HARDENING</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.1 Configuration Auditing</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>10.1.1 OS Hardening Audit</summary><div class="children">
+      <div class="leaf">10.1.1.1 Linux CIS benchmark automated auditor (Level 1 & 2)</div>
+      <div class="leaf">10.1.1.2 Windows Server CIS / DISA STIG validator</div>
+      <div class="leaf">10.1.1.3 macOS security baseline checker (NIST 800-219)</div>
+      <div class="leaf">10.1.1.4 Kernel parameter (sysctl) hardening auditor</div>
+      <div class="leaf">10.1.1.5 PAM / sudoers / SSH config security linter</div>
+      <div class="leaf">10.1.1.6 AppArmor / SELinux policy analyzer</div>
+      <div class="leaf">10.1.1.7 Systemd unit file security auditor</div>
+      <div class="leaf">10.1.1.8 Boot loader (GRUB) integrity checker</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>10.1.2 Network Device Auditing</summary><div class="children">
+      <div class="leaf">10.1.2.1 Router / switch configuration parser & auditor</div>
+      <div class="leaf">10.1.2.2 Cisco IOS / NX-OS baseline hardening checker</div>
+      <div class="leaf">10.1.2.3 Juniper JunOS security posture analyzer</div>
+      <div class="leaf">10.1.2.4 Firewall rule conflict / shadow analyzer</div>
+      <div class="leaf">10.1.2.5 Network ACL redundancy & over-permissive rule detector</div>
+      <div class="leaf">10.1.2.6 VLAN / trunking misconfiguration auditor</div>
+      <div class="leaf">10.1.2.7 BGP security (RPKI / ROA) validation module</div>
+      <div class="leaf">10.1.2.8 OSPF / EIGRP authentication auditor</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>10.1.3 Application Configuration Auditing</summary><div class="children">
+      <div class="leaf">10.1.3.1 Web server security header auditor (CSP, HSTS, etc.)</div>
+      <div class="leaf">10.1.3.2 Database security configuration auditor (MySQL, MSSQL, PostgreSQL, Oracle)</div>
+      <div class="leaf">10.1.3.3 Active Directory security baseline auditor (Purple Knight style)</div>
+      <div class="leaf">10.1.3.4 LDAP / Kerberos configuration hardening checker</div>
+      <div class="leaf">10.1.3.5 DNS security (DNSSEC, split-horizon) auditor</div>
+      <div class="leaf">10.1.3.6 Email security auditor (SPF, DKIM, DMARC validator)</div>
+      <div class="leaf">10.1.3.7 PKI / certificate configuration weaknesses scanner</div>
+      <div class="leaf">10.1.3.8 Redis / Memcached / Kafka security hardener</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.2 Security Architecture Review</summary><div class="children">
+    <div class="leaf">10.2.1 Network segmentation gap analyzer</div>
+    <div class="leaf">10.2.2 Blast radius calculator (lateral movement surface)</div>
+    <div class="leaf">10.2.3 Zero Trust maturity model assessor</div>
+    <div class="leaf">10.2.4 Micro-segmentation policy reviewer</div>
+    <div class="leaf">10.2.5 Privileged access pathway mapper (AD tiering)</div>
+    <div class="leaf">10.2.6 Identity perimeter attack surface analyzer</div>
+    <div class="leaf">10.2.7 Credential exposure pathway finder</div>
+    <div class="leaf">10.2.8 Trust boundary diagram generator</div>
+    <div class="leaf">10.2.9 Defense-in-depth gap assessment tool</div>
+    <div class="leaf">10.2.10 Threat model → control coverage mapper (STRIDE / PASTA)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.3 Application Security Auditing (SAST / DAST / IAST)</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>10.3.1 Source Code Security Review</summary><div class="children">
+      <div class="leaf">10.3.1.1 Multi-language SAST orchestrator (Semgrep, Checkmarx, Fortify)</div>
+      <div class="leaf">10.3.1.2 Secrets & credential leak scanner (GitLeaks, TruffleHog)</div>
+      <div class="leaf">10.3.1.3 Dependency vulnerability mapper (npm audit, pip-audit, OWASP DC)</div>
+      <div class="leaf">10.3.1.4 Insecure cryptographic usage detector</div>
+      <div class="leaf">10.3.1.5 Hardcoded sensitive data scanner</div>
+      <div class="leaf">10.3.1.6 Race condition & TOCTOU static detector</div>
+      <div class="leaf">10.3.1.7 IaC security linter (Checkov, tfsec, Terrascan)</div>
+      <div class="leaf">10.3.1.8 Container Dockerfile / Helm chart security linter</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>10.3.2 Runtime Security Testing</summary><div class="children">
+      <div class="leaf">10.3.2.1 IAST agent deploy manager (Contrast, Seeker)</div>
+      <div class="leaf">10.3.2.2 Runtime dependency confusion detector</div>
+      <div class="leaf">10.3.2.3 API security testing (OWASP API Top-10 scanner)</div>
+      <div class="leaf">10.3.2.4 Deserialization vulnerability runtime detector</div>
+      <div class="leaf">10.3.2.5 Business logic abuse test harness</div>
+      <div class="leaf">10.3.2.6 Rate limiting / throttle bypass tester</div>
+      <div class="leaf">10.3.2.7 Mass assignment / parameter pollution scanner</div>
+      <div class="leaf">10.3.2.8 Security regression test suite builder</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.4 Identity & Access Auditing</summary><div class="children">
+    <div class="leaf">10.4.1 Stale / orphaned account detector (AD, LDAP, cloud)</div>
+    <div class="leaf">10.4.2 Over-privileged account finder (least-privilege analyzer)</div>
+    <div class="leaf">10.4.3 Service account credential exposure auditor</div>
+    <div class="leaf">10.4.4 Password policy compliance enforcer</div>
+    <div class="leaf">10.4.5 MFA coverage gap analyzer (per-system)</div>
+    <div class="leaf">10.4.6 Privileged group membership reviewer</div>
+    <div class="leaf">10.4.7 Session management weakness detector</div>
+    <div class="leaf">10.4.8 OAuth scope over-grant auditor</div>
+    <div class="leaf">10.4.9 Dormant admin account detector</div>
+    <div class="leaf">10.4.10 Service principal / managed identity auditor (Azure, AWS, GCP)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.5 Log & Audit Trail Auditing</summary><div class="children">
+    <div class="leaf">10.5.1 Log completeness coverage matrix (which assets aren't logging)</div>
+    <div class="leaf">10.5.2 Log integrity validator (tamper detection)</div>
+    <div class="leaf">10.5.3 Audit event retention compliance checker</div>
+    <div class="leaf">10.5.4 SIEM detection coverage gap mapper (ATT&CK vs rules)</div>
+    <div class="leaf">10.5.5 Windows event log policy auditor (GPO coverage)</div>
+    <div class="leaf">10.5.6 Cloud audit log completeness checker (CloudTrail, GCP Audit Logs)</div>
+    <div class="leaf">10.5.7 PowerShell / WMI / WEVTUTIL logging configuration auditor</div>
+    <div class="leaf">10.5.8 Sysmon deployment coverage analyzer</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.6 Network Security Auditing</summary><div class="children">
+    <div class="leaf">10.6.1 Exposed service inventory vs expected baseline diff</div>
+    <div class="leaf">10.6.2 Rogue / unauthorized device detector</div>
+    <div class="leaf">10.6.3 Unencrypted protocol (Telnet, FTP, HTTP) usage finder</div>
+    <div class="leaf">10.6.4 TLS/SSL configuration auditor (testssl.sh integration)</div>
+    <div class="leaf">10.6.5 DNSSEC misconfiguration auditor</div>
+    <div class="leaf">10.6.6 Network flow anomaly baseline deviation report</div>
+    <div class="leaf">10.6.7 Ingress / egress filtering audit (anti-spoofing, BCP38)</div>
+    <div class="leaf">10.6.8 Wi-Fi security posture auditor (WPA3 readiness)</div>
+    <div class="leaf">10.6.9 Network traffic encryption coverage report</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.7 Data Security Auditing</summary><div class="children">
+    <div class="leaf">10.7.1 Sensitive data discovery & classification scanner (DLP audit)</div>
+    <div class="leaf">10.7.2 Encryption at rest coverage gap analyzer</div>
+    <div class="leaf">10.7.3 Backup encryption & integrity validator</div>
+    <div class="leaf">10.7.4 Database access control & privilege auditor</div>
+    <div class="leaf">10.7.5 Data retention policy compliance checker</div>
+    <div class="leaf">10.7.6 PII / PHI exposure surface mapper</div>
+    <div class="leaf">10.7.7 Cloud storage (S3/Blob/GCS) public exposure auditor</div>
+    <div class="leaf">10.7.8 Key management system (KMS) configuration auditor</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>10.8 Penetration Test Auditing & Quality Assurance</summary><div class="children">
+    <div class="leaf">10.8.1 Pentest methodology compliance checker (OWASP, PTES, OSSTMM)</div>
+    <div class="leaf">10.8.2 Finding severity validation workflow</div>
+    <div class="leaf">10.8.3 Retest / re-audit evidence tracker</div>
+    <div class="leaf">10.8.4 Remediation verification testing module</div>
+    <div class="leaf">10.8.5 Coverage heatmap (scope coverage vs tested)</div>
+    <div class="leaf">10.8.6 False positive / false negative triage workflow</div>
+    <div class="leaf">10.8.7 Third-party pentest report importer & normalizer</div>
+    <div class="leaf">10.8.8 Audit firm quality scoring & comparison module</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 11 — MOBILE & IoT / EMBEDDED SECURITY
+══════════════════════════════════════════════════════ -->
+<details class="l1 off">
+<summary><span class="arrow">▶</span>📱  PILLAR 11 — MOBILE & IoT / EMBEDDED SECURITY</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>11.1 Android Security</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>11.1.1 Android Static Analysis</summary><div class="children">
+      <div class="leaf">11.1.1.1 APK decompiler & manifest auditor (JADX / Apktool)</div>
+      <div class="leaf">11.1.1.2 MobSF automated static analysis pipeline</div>
+      <div class="leaf">11.1.1.3 Hardcoded secrets / API key extractor</div>
+      <div class="leaf">11.1.1.4 Permission over-request analyzer</div>
+      <div class="leaf">11.1.1.5 Exported component / deep-link attack surface mapper</div>
+      <div class="leaf">11.1.1.6 Insecure data storage auditor (SharedPrefs, SQLite, external)</div>
+      <div class="leaf">11.1.1.7 Custom certificate pinning bypass detector</div>
+      <div class="leaf">11.1.1.8 ProGuard / R8 obfuscation bypass researcher</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>11.1.2 Android Dynamic Analysis</summary><div class="children">
+      <div class="leaf">11.1.2.1 Frida Android hook library manager</div>
+      <div class="leaf">11.1.2.2 SSL/TLS pinning bypass script bank (TrustManager, OkHttp, etc.)</div>
+      <div class="leaf">11.1.2.3 Root detection bypass patcher</div>
+      <div class="leaf">11.1.2.4 Intent monitor & injection tool</div>
+      <div class="leaf">11.1.2.5 Android traffic interception proxy (Burp + emulator)</div>
+      <div class="leaf">11.1.2.6 Tapjacking & overlay attack tester</div>
+      <div class="leaf">11.1.2.7 Broadcast receiver fuzzer</div>
+      <div class="leaf">11.1.2.8 Content provider injection tester</div>
+      <div class="leaf">11.1.2.9 Android kernel exploit staging (via adb)</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>11.2 iOS / iPadOS Security</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>11.2.1 iOS Static Analysis</summary><div class="children">
+      <div class="leaf">11.2.1.1 IPA extraction & Mach-O binary analyzer</div>
+      <div class="leaf">11.2.1.2 objection / Frida iOS toolkit</div>
+      <div class="leaf">11.2.1.3 Info.plist permission & entitlement auditor</div>
+      <div class="leaf">11.2.1.4 iOS ATS (App Transport Security) bypass checker</div>
+      <div class="leaf">11.2.1.5 Keychain data extraction analysis</div>
+      <div class="leaf">11.2.1.6 Swift / Objective-C decompiler bridge (Hopper / Ghidra)</div>
+      <div class="leaf">11.2.1.7 Third-party SDK risk analyzer</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>11.2.2 iOS Dynamic Analysis</summary><div class="children">
+      <div class="leaf">11.2.2.1 Jailbreak-based runtime analysis toolkit</div>
+      <div class="leaf">11.2.2.2 SSL kill-switch & pinning bypass</div>
+      <div class="leaf">11.2.2.3 NSUserDefaults / Core Data exposure tester</div>
+      <div class="leaf">11.2.2.4 Method swizzling & hooking harness</div>
+      <div class="leaf">11.2.2.5 iOS URL scheme hijacking tester</div>
+      <div class="leaf">11.2.2.6 XPC / Mach port security analyzer</div>
+      <div class="leaf">11.2.2.7 iPhone backup analysis & decryption tool</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>11.3 IoT / Embedded Device Security</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>11.3.1 Firmware Analysis</summary><div class="children">
+      <div class="leaf">11.3.1.1 Firmware extraction & binwalk analysis pipeline</div>
+      <div class="leaf">11.3.1.2 Filesystem unpacking & sensitive data extractor</div>
+      <div class="leaf">11.3.1.3 QEMU firmware emulation harness</div>
+      <div class="leaf">11.3.1.4 Hardcoded credential harvester (firmware)</div>
+      <div class="leaf">11.3.1.5 Backdoor & debug interface detector</div>
+      <div class="leaf">11.3.1.6 Vulnerable component (busybox, dropbear) version checker</div>
+      <div class="leaf">11.3.1.7 Kernel version CVE mapper for embedded Linux</div>
+      <div class="leaf">11.3.1.8 Bootloader (U-Boot) security auditor</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>11.3.2 Hardware Interface Attacks</summary><div class="children">
+      <div class="leaf">11.3.2.1 UART / JTAG / SWD console discovery & exploit</div>
+      <div class="leaf">11.3.2.2 I2C / SPI / CAN bus sniffing & injection</div>
+      <div class="leaf">11.3.2.3 EEPROM / NAND flash dumping toolkit</div>
+      <div class="leaf">11.3.2.4 PCB trace / test point discovery guide</div>
+      <div class="leaf">11.3.2.5 Glitch / fault injection setup (clock / voltage)</div>
+      <div class="leaf">11.3.2.6 Power analysis & side-channel capture (oscilloscope integration)</div>
+      <div class="leaf">11.3.2.7 Secure boot bypass research (signature forgery)</div>
+      <div class="leaf">11.3.2.8 Trust zone / TEE attack surface analyzer</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>11.3.3 IoT Protocol Attacks</summary><div class="children">
+      <div class="leaf">11.3.3.1 MQTT broker security tester (auth bypass, topic enumeration)</div>
+      <div class="leaf">11.3.3.2 CoAP protocol attack suite</div>
+      <div class="leaf">11.3.3.3 Zigbee / Z-Wave network attack toolkit</div>
+      <div class="leaf">11.3.3.4 LoRaWAN network security assessment</div>
+      <div class="leaf">11.3.3.5 Thread / Matter protocol analyzer</div>
+      <div class="leaf">11.3.3.6 BLE (Bluetooth LE) attack suite (BTLE Juice)</div>
+      <div class="leaf">11.3.3.7 OBD-II / CAN bus vehicle attack lab</div>
+      <div class="leaf">11.3.3.8 Industrial IoT (IIoT) device attack surface mapper</div>
+    </div></details>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>11.4 Mobile Application DAST Platform</summary><div class="children">
+    <div class="leaf">11.4.1 Mobile API traffic interception & tampering proxy</div>
+    <div class="leaf">11.4.2 Automated OWASP Mobile Top 10 scanner</div>
+    <div class="leaf">11.4.3 Deep link / universal link fuzzer</div>
+    <div class="leaf">11.4.4 Mobile CI/CD security gate integration</div>
+    <div class="leaf">11.4.5 Cross-platform (Flutter / React Native) security analyzer</div>
+    <div class="leaf">11.4.6 Mobile certificate transparency monitor</div>
+    <div class="leaf">11.4.7 App store metadata & permission trend analyzer</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 12 — CLOUD-NATIVE SECURITY OPERATIONS
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>☁️  PILLAR 12 — CLOUD-NATIVE SECURITY OPERATIONS</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.1 Cloud Security Posture Management (CSPM)</summary><div class="children">
+    <div class="leaf">12.1.1 Continuous AWS / Azure / GCP misconfiguration monitor</div>
+    <div class="leaf">12.1.2 Cloud resource drift detector vs IaC baseline</div>
+    <div class="leaf">12.1.3 Public exposure surface inventory (open S3, open SGs)</div>
+    <div class="leaf">12.1.4 Cloud IAM policy analyzer (over-permissive role finder)</div>
+    <div class="leaf">12.1.5 Shared responsibility model gap analyzer</div>
+    <div class="leaf">12.1.6 Multi-cloud unified posture dashboard</div>
+    <div class="leaf">12.1.7 Cloud security benchmark (CIS AWS/Azure/GCP) automation</div>
+    <div class="leaf">12.1.8 Shadow IT / unmanaged cloud resource discovery</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.2 Cloud Workload Protection (CWPP)</summary><div class="children">
+    <div class="leaf">12.2.1 Container runtime threat detection (Falco / Tetragon)</div>
+    <div class="leaf">12.2.2 Kubernetes admission controller policy engine (OPA Gatekeeper)</div>
+    <div class="leaf">12.2.3 Serverless (Lambda / Cloud Functions) security monitor</div>
+    <div class="leaf">12.2.4 VM / instance agent-based workload protection</div>
+    <div class="leaf">12.2.5 Container image vulnerability scanning pipeline (Trivy, Grype)</div>
+    <div class="leaf">12.2.6 Registry security gate & policy enforcer</div>
+    <div class="leaf">12.2.7 Service mesh mTLS policy auditor</div>
+    <div class="leaf">12.2.8 eBPF-based cloud workload introspection</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.3 Cloud Identity & Entitlements (CIEM)</summary><div class="children">
+    <div class="leaf">12.3.1 Cloud IAM cross-account privilege escalation path finder</div>
+    <div class="leaf">12.3.2 Permissions gap analysis (used vs granted)</div>
+    <div class="leaf">12.3.3 Service account / machine identity risk scorer</div>
+    <div class="leaf">12.3.4 Cross-cloud identity federation security auditor</div>
+    <div class="leaf">12.3.5 Role assumption chain attack path mapper</div>
+    <div class="leaf">12.3.6 Managed identity / workload identity security reviewer</div>
+    <div class="leaf">12.3.7 Cloud JIT access workflow enforcer</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.4 Cloud Threat Detection & Response (CDR)</summary><div class="children">
+    <div class="leaf">12.4.1 CloudTrail / Activity Log anomaly detector</div>
+    <div class="leaf">12.4.2 Cloud-native SIEM rule library (AWS, Azure, GCP)</div>
+    <div class="leaf">12.4.3 Crypto-mining detection module</div>
+    <div class="leaf">12.4.4 Data exfiltration via cloud services detector</div>
+    <div class="leaf">12.4.5 Privilege escalation behavior detector</div>
+    <div class="leaf">12.4.6 Impossible travel & geo-anomaly alert engine</div>
+    <div class="leaf">12.4.7 Cloud IR playbook library (AWS GuardDuty, Azure Sentinel)</div>
+    <div class="leaf">12.4.8 Cloud honeytrap (canary IAM keys, fake buckets)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.5 Kubernetes Security Operations</summary><div class="children">
+    <div class="leaf">12.5.1 CIS Kubernetes benchmark automated scanner (kube-bench)</div>
+    <div class="leaf">12.5.2 Kubernetes RBAC permission analyzer (kubectl-who-can)</div>
+    <div class="leaf">12.5.3 Pod security standard compliance enforcer</div>
+    <div class="leaf">12.5.4 Etcd encryption-at-rest auditor</div>
+    <div class="leaf">12.5.5 Kubernetes secret exposure scanner</div>
+    <div class="leaf">12.5.6 Privileged container detector & blocker</div>
+    <div class="leaf">12.5.7 Network policy coverage gap analyzer</div>
+    <div class="leaf">12.5.8 Supply chain attack surface (image provenance) auditor</div>
+    <div class="leaf">12.5.9 Kubernetes API server attack surface reviewer</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>12.6 Cloud Red Team Operations</summary><div class="children">
+    <div class="leaf">12.6.1 Cloud attack simulation framework (Stratus Red Team)</div>
+    <div class="leaf">12.6.2 AWS-specific attack technique library (Pacu integration)</div>
+    <div class="leaf">12.6.3 Azure attack toolkit (ROADtools, AADInternals bridge)</div>
+    <div class="leaf">12.6.4 GCP-specific attack automation module</div>
+    <div class="leaf">12.6.5 Cloud credential harvesting & persistence module</div>
+    <div class="leaf">12.6.6 Cross-tenant / account pivot attack chains</div>
+    <div class="leaf">12.6.7 Serverless function compromise & persistence</div>
+    <div class="leaf">12.6.8 Cloud storage (S3/Blob) attack & exfiltration module</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 13 — NETWORK FORENSICS & TRAFFIC ANALYSIS
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>🌐  PILLAR 13 — NETWORK FORENSICS & TRAFFIC ANALYSIS</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>13.1 Packet Capture & Analysis</summary><div class="children">
+    <div class="leaf">13.1.1 High-speed PCAP capture engine (PF_RING / DPDK)</div>
+    <div class="leaf">13.1.2 Wireshark automation & dissector plugin manager</div>
+    <div class="leaf">13.1.3 Long-term PCAP rotation & storage manager</div>
+    <div class="leaf">13.1.4 PCAP indexer & fast-search backend</div>
+    <div class="leaf">13.1.5 Selective capture filter generator (BPF syntax)</div>
+    <div class="leaf">13.1.6 Decryption engine (pre-shared keys, session key log)</div>
+    <div class="leaf">13.1.7 PCAP-to-flow export (NetFlow / IPFIX / sFlow)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>13.2 Protocol Analysis & Reconstruction</summary><div class="children">
+    <div class="leaf">13.2.1 HTTP/1.1 / HTTP/2 / HTTP/3 session reconstructor</div>
+    <div class="leaf">13.2.2 DNS query/response timeline builder</div>
+    <div class="leaf">13.2.3 TLS session analyzer & certificate extractor</div>
+    <div class="leaf">13.2.4 SMB / CIFS session replay & file extractor</div>
+    <div class="leaf">13.2.5 Email protocol (SMTP/IMAP/POP3) session reconstructor</div>
+    <div class="leaf">13.2.6 VoIP (SIP / RTP) stream decoder & recorder</div>
+    <div class="leaf">13.2.7 Industrial protocol (Modbus/S7/EtherNet-IP) decoder</div>
+    <div class="leaf">13.2.8 File carving from network streams (Xplico / NetworkMiner)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>13.3 C2 Traffic Detection</summary><div class="children">
+    <div class="leaf">13.3.1 Beaconing pattern detector (interval analysis)</div>
+    <div class="leaf">13.3.2 DNS tunneling detector (entropy, query length analysis)</div>
+    <div class="leaf">13.3.3 HTTPS C2 JA3/JA3S fingerprint library matcher</div>
+    <div class="leaf">13.3.4 Domain generation algorithm (DGA) classifier</div>
+    <div class="leaf">13.3.5 Fast-flux DNS behavior detector</div>
+    <div class="leaf">13.3.6 ICMP / protocol covert channel detector</div>
+    <div class="leaf">13.3.7 Steganographic exfiltration detector (image/audio in traffic)</div>
+    <div class="leaf">13.3.8 Known C2 framework fingerprint library (Cobalt Strike, Sliver, Brute Ratel)</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>13.4 Network Behavior Analytics</summary><div class="children">
+    <div class="leaf">13.4.1 Long-term NetFlow baseline builder</div>
+    <div class="leaf">13.4.2 Peer-to-peer / scanning behavior classifier</div>
+    <div class="leaf">13.4.3 Data staging & exfiltration volume anomaly detector</div>
+    <div class="leaf">13.4.4 Port knocking & stealth reconnaissance detector</div>
+    <div class="leaf">13.4.5 East-west encrypted traffic anomaly profiler</div>
+    <div class="leaf">13.4.6 Asset communication baseline deviation alerter</div>
+    <div class="leaf">13.4.7 BGP hijacking / prefix announcement anomaly detector</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 14 — THREAT INTELLIGENCE PLATFORM (TIP)
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>🕵️  PILLAR 14 — THREAT INTELLIGENCE PLATFORM (TIP)</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>14.1 Intelligence Collection & Ingestion</summary><div class="children">
+    <div class="leaf">14.1.1 OSINT feed aggregator (RSS, Twitter/X, forums)</div>
+    <div class="leaf">14.1.2 Dark web marketplace monitor (Tor onion crawler)</div>
+    <div class="leaf">14.1.3 Paste site / code repo leak monitor</div>
+    <div class="leaf">14.1.4 ISAC / ISAO feed consumer (FS-ISAC, H-ISAC, etc.)</div>
+    <div class="leaf">14.1.5 Government advisory ingestion (CISA, NCSC, ANSSI)</div>
+    <div class="leaf">14.1.6 Vendor threat report parser (PDF → structured TI)</div>
+    <div class="leaf">14.1.7 Malware sample repository (VirusTotal, MalwareBazaar)</div>
+    <div class="leaf">14.1.8 Threat actor persona tracker</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>14.2 Intelligence Processing & Analysis</summary><div class="children">
+    <div class="leaf">14.2.1 IOC confidence scoring & aging engine</div>
+    <div class="leaf">14.2.2 Diamond model / kill-chain TTP mapper</div>
+    <div class="leaf">14.2.3 Actor attribution graph builder</div>
+    <div class="leaf">14.2.4 TTP-to-detection rule auto-generator</div>
+    <div class="leaf">14.2.5 Campaign clustering & tracking module</div>
+    <div class="leaf">14.2.6 Threat landscape trend analysis dashboard</div>
+    <div class="leaf">14.2.7 Sector-specific threat relevance filter</div>
+    <div class="leaf">14.2.8 Finished intelligence report generator</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>14.3 Intelligence Sharing & Dissemination</summary><div class="children">
+    <div class="leaf">14.3.1 STIX 2.1 object creator & validator</div>
+    <div class="leaf">14.3.2 TAXII 2.1 server & client</div>
+    <div class="leaf">14.3.3 TLP-aware sharing policy enforcer</div>
+    <div class="leaf">14.3.4 MISP synchronization hub</div>
+    <div class="leaf">14.3.5 Intelligence consumer API (REST + Webhook)</div>
+    <div class="leaf">14.3.6 Analyst briefing generator (executive & technical)</div>
+    <div class="leaf">14.3.7 Peer organization sharing agreement tracker</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>14.4 Malware Intelligence</summary><div class="children">
+    <div class="leaf">14.4.1 Malware family encyclopedia & TTP mapper</div>
+    <div class="leaf">14.4.2 YARA rule repository & quality scorer</div>
+    <div class="leaf">14.4.3 Snort / Suricata IDS rule curator (TI-derived)</div>
+    <div class="leaf">14.4.4 Ransomware group tracker (leak sites, payment portals)</div>
+    <div class="leaf">14.4.5 C2 infrastructure pivot database (IP / domain / cert)</div>
+    <div class="leaf">14.4.6 Malware configuration extractor library</div>
+    <div class="leaf">14.4.7 Sandbox detonation & report aggregator</div>
+  </div></details>
+
+</div></details>
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 15 — ZERO TRUST ARCHITECTURE ENGINE
+══════════════════════════════════════════════════════ -->
+<details class="l1 def">
+<summary><span class="arrow">▶</span>🚧  PILLAR 15 — ZERO TRUST ARCHITECTURE ENGINE</summary>
+<div class="children">
+
+  <details class="l2"><summary><span class="arrow">▶</span>15.1 Zero Trust Assessment & Maturity</summary><div class="children">
+    <div class="leaf">15.1.1 NIST SP 800-207 maturity assessment module</div>
+    <div class="leaf">15.1.2 CISA Zero Trust Maturity Model (ZTMM 2.0) evaluator</div>
+    <div class="leaf">15.1.3 DoD Zero Trust Reference Architecture gap analyzer</div>
+    <div class="leaf">15.1.4 ZT pillar-by-pillar control mapping (Identity, Devices, Network, Apps, Data)</div>
+    <div class="leaf">15.1.5 ZT roadmap & prioritized remediation planner</div>
+    <div class="leaf">15.1.6 Continuous trust posture scoring engine</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>15.2 Identity-Centric Access Control</summary><div class="children">
+    <div class="leaf">15.2.1 Continuous authentication risk engine</div>
+    <div class="leaf">15.2.2 Device health posture check integration (MDM, EDR)</div>
+    <div class="leaf">15.2.3 Context-aware access policy builder (location, time, risk)</div>
+    <div class="leaf">15.2.4 Step-up authentication trigger orchestrator</div>
+    <div class="leaf">15.2.5 ZTNA (Zero Trust Network Access) policy enforcer</div>
+    <div class="leaf">15.2.6 Micro-segmentation policy lifecycle manager</div>
+    <div class="leaf">15.2.7 Software-defined perimeter (SDP) controller</div>
+  </div></details>
+
+  <details class="l2"><summary><span class="arrow">▶</span>15.3 Data-Centric Zero Trust</summary><div class="children">
+    <div class="leaf">15.3.1 Data classification & sensitivity label enforcer</div>
+    <div class="leaf">15.3.2 ABAC (attribute-based) policy engine for data access</div>
+    <div class="leaf">15.3.3 DLP (data loss prevention) policy orchestrator</div>
+    <div class="leaf">15.3.4 Rights management (IRM / MIP) integration</div>
+    <div class="leaf">15.3.5 Data access behavioral baseline & anomaly alerts</div>
+    <div class="leaf">15.3.6 Automated data minimization enforcement</div>
+  </div></details>
+
+</div></details>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PILLAR 16 — RUST WORKSPACE IMPLEMENTATION
+══════════════════════════════════════════════════════ -->
+<details class="l1 rust">
+<summary><span class="arrow">▶</span>⚙️  PILLAR 16 — RUST WORKSPACE IMPLEMENTATION</summary>
+<div class="children">
+
+  <!-- TIER 0 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 0 · Foundational Substrate «ucn-core-*»</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.1 ucn-types — domain primitives</summary><div class="children">
+      <div class="leaf" data-why="A single home for newtype IDs, units, and domain primitives. Isolated so a type change recompiles only dependents." data-iso="">16.0.1.1 CrateId / ModuleId (NonZeroU64 newtypes) <span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.1.2 TaskId / ActorId / SpanId</div>
+      <div class="leaf">16.0.1.3 TenantId (multi-tenant blast-wall key)</div>
+      <div class="leaf">16.0.1.4 Typed Bytes / Millis / Hz — no bare integers <span class="rtag nostd">no_std</span></div>
+      <div class="leaf">16.0.1.5 Niche-optimized wrappers for free Option layout</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.2 ucn-error — unified error algebra</summary><div class="children">
+      <div class="leaf" data-why="A unified error algebra lets every crate speak one Result dialect and carry typed layered context across crate boundaries." data-iso="Defines the Error Boundary type — a serializable, downcastable envelope that converts any panic/error into data instead of unwinding across a crate seam.">16.0.2.1 ErrorKind enum (#[non_exhaustive], stable wire repr) <span class="rtag nightly">nightly</span></div>
+      <div class="leaf" data-iso="Wraps a fallible region; on failure it records, classifies, and returns control to the supervisor rather than propagating upward.">16.0.2.2 Boundary&lt;E&gt; — catches, tags, and demotes failures</div>
+      <div class="leaf">16.0.2.3 Fallback trait — typed graceful-degradation values <span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.2.4 Infallible / `!` ergonomics for can't-fail paths</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.3 ucn-alloc — per-subsystem allocators</summary><div class="children">
+      <div class="leaf" data-why="Per-subsystem allocators are the primary blast-radius wall: each task gets an arena, so runaway allocation is contained and reclaimed wholesale on task death." data-iso="A failed task's entire arena is dropped at once — no leaked allocations escape into shared global heap.">16.0.3.1 Arena allocator — O(1) reset <span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.3.2 SlabPool&lt;T&gt; — fixed-class, fragmentation-free</div>
+      <div class="leaf" data-iso="Returns AllocError past the ceiling instead of OOM-killing the process, so one greedy tenant can't starve others.">16.0.3.3 QuotaAlloc — hard per-tenant memory ceiling</div>
+      <div class="leaf">16.0.3.4 GuardedAlloc — red-zone canaries (debug/miri)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.4 ucn-mem — audited unsafe memory</summary><div class="children">
+      <div class="leaf" data-why="Concentrating unsafe here means the rest of the tree is unsafe-free and the soundness surface is tiny and reviewable." data-iso="Every unsafe block carries a SAFETY: proof; the crate is the only one permitted `unsafe` outside the *-sys siblings.">16.0.4.1 UnsafeCell wrappers with provenance-correct access <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf">16.0.4.2 Safe checked-layout transmute (compile-time proof) <span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.4.3 Over-aligned buffers for SIMD/DMA</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.5 ucn-sync — lock-free primitives</summary><div class="children">
+      <div class="leaf" data-why="Lock-free building blocks isolated so their tricky memory-ordering proofs live in one place and are fuzzed under miri/loom-style models independently.">16.0.5.1 Atomic cells &amp; seqlocks <span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.5.2 MPMC lock-free queue (Michael-Scott)</div>
+      <div class="leaf">16.0.5.3 OnceCell / lazy init without poisoning</div>
+      <div class="leaf">16.0.5.4 Thread parker (futex via raw syscall, no libc)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.0.6 ucn-simd — portable SIMD facade</summary><div class="children">
+      <div class="leaf" data-why="Wrapping std::simd isolates the unstable API churn behind a stable internal interface so a portable_simd change touches one crate." data-iso="Runtime feature-detect; degrades to scalar instead of SIGILL on unsupported CPUs.">16.0.6.1 Width-generic Vector&lt;T,N&gt; <span class="rtag simd">simd</span><span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.0.6.2 Scalar fallback path when target lacks ISA</div>
+    </div></details>
+    <div class="leaf" data-why="No external rand dependency — a cryptographic RNG we fully audit, deterministic-seedable for reproducible chaos tests.">16.0.7 ucn-rng — in-house ChaCha20 CSPRNG <span class="rtag nostd">no_std</span><span class="rtag pure">pure</span></div>
+    <div class="leaf" data-why="Tiny zero-dep codecs; split out because nearly everything needs them but nothing should pull a heavy dependency for them.">16.0.8 ucn-encoding — hex / base64 / varint / leb128 <span class="rtag nostd">no_std</span><span class="rtag pure">pure</span></div>
+  </div></details>
+
+  <!-- TIER 1 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 1 · Async Runtime & Supervision «ucn-rt-*»</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>16.1.1 ucn-executor — work-stealing async executor</summary><div class="children">
+      <div class="leaf" data-why="Our own runtime instead of tokio — full control over scheduling, panic handling, and per-task arenas. Split from the reactor so compute and I/O scale independently." data-iso="catch_unwind around every poll: a panicking future dies alone and its slot is reclaimed; the worker thread survives.">16.1.1.1 Per-core worker with Chase-Lev steal deque <span class="rtag unsafe">unsafe</span><span class="rtag async">async</span></div>
+      <div class="leaf">16.1.1.2 CPU pinning via raw sched_setaffinity <span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.1.1.3 Idle parking + LIFO slot for cache locality</div>
+      <div class="leaf" data-iso="A task exceeding its poll budget is yielded, preventing one busy loop from starving a core.">16.1.1.4 Cooperative poll budget — preempt CPU hogs</div>
+      <div class="leaf" data-iso="Single choke point where a dead task is cleaned up atomically.">16.1.1.5 Panic catch + arena teardown guard</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.1.2 ucn-reactor — io_uring / kqueue raw I/O</summary><div class="children">
+      <div class="leaf" data-why="Direct io_uring submission with zero libc — maximal throughput and no foreign-language surface. Separate crate so a platform's I/O backend can fail to build without blocking compute crates." data-iso="A backend (io_uring | epoll | kqueue) is feature-gated; if the kernel lacks io_uring it falls back to epoll at runtime.">16.1.2.1 Linux io_uring SQ/CQ rings <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf" data-iso="Graceful degradation path.">16.1.2.2 epoll fallback</div>
+      <div class="leaf">16.1.2.3 kqueue (BSD/macOS backend)</div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.1.3 ucn-supervisor ★ failure-isolation core</summary><div class="children">
+      <div class="leaf" data-why="The OTP supervision tree — THE crate that makes the whole ecosystem fault-tolerant. Owns restart strategy and decides who dies and who survives when a child fails." data-iso="Restart strategies bound the blast radius precisely.">16.1.3.1 OneForOne — restart only the failed child <span class="rtag async">async</span><span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.1.3.2 OneForAll — restart all siblings (shared state)</div>
+      <div class="leaf">16.1.3.3 RestForOne — restart failed child + dependents</div>
+      <div class="leaf" data-iso="Last resort; only escalates when local restarts exhaust their budget.">16.1.3.4 Escalate — bubble to parent supervisor</div>
+      <div class="leaf" data-iso="Prevents crash-loops: exceeding the budget escalates instead of hammering a doomed child forever.">16.1.3.5 Restart intensity budget (N restarts / T window)</div>
+    </div></details>
+    <div class="leaf" data-why="Bounded channels are the bulkhead between actors; backpressure prevents a slow consumer from causing unbounded memory growth upstream." data-iso="Bounded capacity converts overload into backpressure (a recoverable signal) instead of OOM (a fatal failure).">16.1.4 ucn-channel — MPSC/MPMC + backpressure <span class="rtag async">async</span><span class="rtag pure">pure</span></div>
+    <div class="leaf" data-why="The unit of isolation. Each actor owns its state exclusively (no shared mutability), so a corrupt actor cannot poison its neighbors.">16.1.5 ucn-actor — mailbox / Addr / ask-tell <span class="rtag async">async</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="Independent liveness oversight. A hung-but-not-panicked actor is invisible to the supervisor; the watchdog detects silence and forces a restart." data-iso="Converts hangs (the hardest failure to detect) into explicit, recoverable events.">16.1.6 ucn-watchdog — heartbeat / liveness / deadlock detector</div>
+    <div class="leaf" data-why="Stops calling a failing dependency after a threshold, fails fast, and probes for recovery — prevents cascading failure." data-iso="Open → Half-open → Closed state machine isolates a sick downstream from healthy callers.">16.1.7 ucn-circuit — circuit breaker</div>
+    <div class="leaf" data-why="Partitions concurrency so one subsystem's overload cannot consume the whole runtime's threads or connections.">16.1.8 ucn-bulkhead — resource partitioning / semaphores</div>
+    <div class="leaf" data-why="Decorrelated-jitter retry policy as data, reused everywhere; isolated so retry math is tested once.">16.1.9 ucn-retry — backoff + jitter + deadline</div>
+    <div class="leaf" data-why="O(1) timer insertion for millions of timeouts; split out because both watchdog and retry depend on it.">16.1.10 ucn-timer — hierarchical timing wheel</div>
+  </div></details>
+
+  <!-- TIER 2 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 2 · Isolation & Sandboxing «ucn-iso-*»</summary><div class="children">
+    <div class="leaf" data-why="Cheapest isolation: catch_unwind + custom panic hook turns a panic into a typed error at a function seam. Used for trusted-but-fallible code." data-iso="Panic = task death, never process death.">16.2.1 ucn-panic-guard — in-process boundary <span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.2.2 ucn-wasm-rt — in-house WASM engine</summary><div class="children">
+      <div class="leaf" data-why="A from-scratch WebAssembly engine (no wasmtime dependency) so plugins run fully sandboxed with linear-memory bounds and fuel metering, under our total control." data-iso="A plugin can only touch its own linear memory and the capabilities we grant; a plugin crash or infinite loop is bounded by fuel and freed instantly.">16.2.2.1 Binary parser + type & bounds validator <span class="rtag wasm">wasm</span><span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf">16.2.2.2 Baseline interpreter</div>
+      <div class="leaf">16.2.2.3 Experimental single-pass JIT <span class="rtag nightly">nightly</span></div>
+      <div class="leaf" data-iso="Caps CPU per call; runaway plugin is trapped, not fatal.">16.2.2.4 Fuel metering — bounded execution</div>
+      <div class="leaf">16.2.2.5 Bounds-checked linear memory <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf">16.2.2.6 Component Model + WIT bindings <span class="rtag nightly">nightly</span></div>
+    </div></details>
+    <div class="leaf" data-why="The capability-narrow bridge a plugin uses to reach the platform — every host function is an explicit, audited grant.">16.2.3 ucn-wasm-host — host calls / WASI subset <span class="rtag wasm">wasm</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.2.4 ucn-sandbox-proc — process isolation</summary><div class="children">
+      <div class="leaf" data-why="Strongest wall: spawn a module as a separate process with seccomp-BPF + Landlock applied via raw syscalls. A segfault or memory corruption dies with the child process, untouchable from the core." data-iso="Hardware/OS-enforced address-space separation — the ultimate blast wall.">16.2.4.1 seccomp-BPF syscall filter builder <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf">16.2.4.2 Landlock LSM ruleset (filesystem caps) <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf">16.2.4.3 Namespace + cgroup v2 confinement <span class="rtag unsafe">unsafe</span></div>
+      <div class="leaf" data-iso="A dead sandbox process is restarted by the same supervision policy as in-process actors.">16.2.4.4 Child supervisor bridging to ucn-supervisor</div>
+    </div></details>
+    <div class="leaf" data-why="Unforgeable capability tokens replace ambient authority. A module literally cannot perform an action it wasn't handed a token for — least privilege by construction." data-iso="Removes the 'confused deputy' failure mode entirely.">16.2.5 ucn-sandbox-cap — object-capability model</div>
+  </div></details>
+
+  <!-- TIER 3 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 3 · Data & State Engines «ucn-data-*»</summary><div class="children">
+    <div class="leaf" data-why="In-house derive-based codec instead of serde — removes the single largest dependency tree in the Rust world and gives us a stable, audited wire format.">16.3.1 ucn-serde-min — zero-dep serialization <span class="rtag nostd">no_std</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf">16.3.2 #[derive(Encode,Decode)] proc-macro crate</div>
+    <div class="leaf" data-why="Shared durability primitive. Splitting it out means every store inherits identical, well-tested crash-recovery semantics." data-iso="Torn-write detection + checksummed segments → a crash mid-write never corrupts committed data.">16.3.3 ucn-wal — write-ahead log + crash recovery <span class="rtag nightly">nightly</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.3.4 ucn-store-kv — LSM-tree embedded KV</summary><div class="children">
+      <div class="leaf" data-why="The default store. LSM for write-heavy telemetry; isolated behind a Store trait so it's hot-swappable.">16.3.4.1 Memtable (skiplist) <span class="rtag async">async</span></div>
+      <div class="leaf">16.3.4.2 SSTable + bloom filters</div>
+      <div class="leaf" data-iso="Compaction runs as its own actor; a compaction failure pauses compaction, not reads/writes.">16.3.4.3 Compaction actor (background, supervised)</div>
+    </div></details>
+    <div class="leaf" data-why="Native graph engine for AD/attack-path modeling — pure Rust so it ships air-gapped.">16.3.5 ucn-store-graph — attack-path graph DB <span class="rtag pure">pure</span></div>
+    <div class="leaf" data-why="SIMD-vectorized columnar scans for telemetry; separate from KV because its access pattern and SIMD deps are entirely different.">16.3.6 ucn-store-col — columnar time-series <span class="rtag simd">simd</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="A tiny shared cache primitive with admission control; isolated for reuse and independent tuning.">16.3.7 ucn-cache — W-TinyLFU in-memory cache <span class="rtag async">async</span></div>
+    <div class="leaf" data-why="Sealed-secret store built on Tier-4 crypto; isolated so the secret-handling audit surface is one small crate.">16.3.8 ucn-vault — encrypted secrets at rest</div>
+  </div></details>
+
+  <!-- TIER 4 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 4 · Cryptography «ucn-crypto-*» — pure Rust, PQ-ready</summary><div class="children">
+    <div class="leaf" data-why="The single place timing-side-channel discipline lives. Inline asm prevents the optimizer from reintroducing branches." data-iso="If this crate is correct, every downstream cipher inherits CT safety.">16.4.1 ucn-constant-time — CT primitives, audited unsafe <span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span><span class="rtag nostd">no_std</span></div>
+    <div class="leaf">16.4.2 ucn-hash — SHA-2/3, BLAKE3 <span class="rtag simd">simd</span><span class="rtag nightly">nightly</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.4.3 ucn-aead — AES-GCM, ChaCha20-Poly1305</summary><div class="children">
+      <div class="leaf" data-iso="Hardware AES when present; constant-time bitsliced fallback otherwise.">16.4.3.1 AES-NI core + portable fallback <span class="rtag unsafe">unsafe</span><span class="rtag simd">simd</span></div>
+      <div class="leaf">16.4.3.2 SIMD ChaCha20 <span class="rtag simd">simd</span></div>
+    </div></details>
+    <div class="leaf" data-why="Crypto-agility: PQ KEM/signatures isolated so the platform can migrate algorithms without touching transport code.">16.4.4 ucn-pq — post-quantum ML-KEM / ML-DSA <span class="rtag nostd">no_std</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="No OpenSSL, no rustls dependency — a pure-Rust 1.3 stack we own end-to-end, with hybrid classical+PQ key exchange." data-iso="A protocol-version or cipher fault is contained to the handshake state machine and surfaces as a typed error.">16.4.5 ucn-tls — in-house TLS 1.3, hybrid PQ <span class="rtag async">async</span><span class="rtag nightly">nightly</span><span class="rtag pure">pure</span></div>
+  </div></details>
+
+  <!-- TIER 5 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 5 · Network & Protocol «ucn-net-*»</summary><div class="children">
+    <div class="leaf" data-why="Raw packet capture/inject via raw syscalls for the recon/IDS engines — no libpcap dependency.">16.5.1 ucn-raw-sock — AF_PACKET raw frames <span class="rtag unsafe">unsafe</span></div>
+    <div class="leaf">16.5.2 ucn-tcp — async TCP <span class="rtag async">async</span></div>
+    <div class="leaf">16.5.3 ucn-udp — async UDP <span class="rtag async">async</span></div>
+    <div class="leaf" data-why="Stream multiplexing means one stream's failure doesn't kill the connection — protocol-level failure isolation.">16.5.4 ucn-quic — in-house QUIC, multiplexed <span class="rtag async">async</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf">16.5.5 ucn-http — HTTP/1.1 + /2 + /3 <span class="rtag async">async</span></div>
+    <div class="leaf">16.5.6 ucn-dns — resolver + zone parser <span class="rtag async">async</span></div>
+    <div class="leaf" data-why="A family of byte-only protocol decoders, each a micro-crate, so the recon and ICS/SCADA engines reuse audited parsers with no I/O coupling.">16.5.7 ucn-proto-* — sans-I/O parsers (TLS-fp, SMB, LDAP, Modbus…) <span class="rtag pure">pure</span></div>
+  </div></details>
+
+  <!-- TIER 6 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 6 · Domain Engines «ucn-engine-*» — pillars as plugins</summary><div class="children">
+    <div class="leaf" data-why="Offensive modules are the most failure-prone (they touch hostile inputs), so each is the most tightly sandboxed — one fuzzer crash is one restarted actor." data-iso="Every offensive module runs in its own sandbox process with a capability-scoped network grant.">16.6.1 ucn-engine-offensive-* (recon · scan · exploit · post) <span class="rtag wasm">wasm</span></div>
+    <div class="leaf" data-why="Detection pipelines decomposed per stage (ingest / correlate / enrich / alert) so a bad correlation rule pauses correlation only.">16.6.2 ucn-engine-defensive-* (SIEM · IDS · EDR · DFIR) <span class="rtag dist">dist</span></div>
+    <div class="leaf" data-why="Inference modules as hot-swappable WASM components — a model can be replaced live without a redeploy.">16.6.3 ucn-engine-ai-* (detection &amp; triage models) <span class="rtag wasm">wasm</span></div>
+    <div class="leaf">16.6.4 ucn-engine-compliance-* (framework mappers)</div>
+    <div class="leaf" data-iso="Classification-aware crates compile under feature flags so a build can physically exclude capabilities for a given deployment tier.">16.6.5 ucn-engine-gov-* (MLS · crypto-agility · air-gap)</div>
+  </div></details>
+
+  <!-- TIER 7 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 7 · Native ML Stack «ucn-ml-*» — no Python, no PyTorch</summary><div class="children">
+    <details class="l3"><summary><span class="arrow">▶</span>16.7.1 ucn-tensor — const-generic shapes, SIMD</summary><div class="children">
+      <div class="leaf" data-why="Compile-time tensor shapes make a dimension-mismatch a compile error — removing the #1 ML runtime crash.">16.7.1.1 Shape&lt;const D: usize&gt; — type-level dims <span class="rtag simd">simd</span><span class="rtag nightly">nightly</span></div>
+      <div class="leaf" data-iso="Falls back to scalar on CPUs lacking the ISA.">16.7.1.2 SIMD kernels (gemm, conv) + scalar fallback</div>
+      <div class="leaf">16.7.1.3 dtype specialization (f32/f16/bf16/i8 paths) <span class="rtag nightly">nightly</span></div>
+    </div></details>
+    <div class="leaf" data-why="Isolated differentiation engine so training and inference share one tested gradient core.">16.7.2 ucn-autograd — reverse-mode AD tape <span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="Each layer family (attention, conv, norm) is its own crate — a new experimental layer is added without recompiling the rest of the model zoo.">16.7.3 ucn-nn — layers as composable micro-crates <span class="rtag pure">pure</span></div>
+    <div class="leaf" data-why="Direct SPIR-V compute dispatch for workload maximization; isolated so a missing GPU degrades to the CPU SIMD path." data-iso="No GPU → automatic CPU fallback, never a hard failure.">16.7.4 ucn-gpu — Vulkan/SPIR-V compute, raw <span class="rtag gpu">gpu</span><span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="Loads quantized models into fuel-metered sandboxes; the inference scheduler is supervised and per-model isolated.">16.7.5 ucn-infer — sandboxed model runtime <span class="rtag wasm">wasm</span><span class="rtag async">async</span></div>
+    <div class="leaf">16.7.6 ucn-quant — int8/int4 quantization <span class="rtag simd">simd</span></div>
+  </div></details>
+
+  <!-- TIER 8 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 8 · Distribution & Orchestration «ucn-orch-*»</summary><div class="children">
+    <div class="leaf" data-why="Decentralized failure detection — nodes detect dead peers without a central coordinator (no SPOF)." data-iso="A partitioned node is marked suspect then dead; its tasks are reassigned.">16.8.1 ucn-cluster — SWIM gossip membership <span class="rtag dist">dist</span><span class="rtag async">async</span></div>
+    <div class="leaf" data-why="Replicated state machine for the parts that must be strongly consistent; isolated so its formal model is verified independently.">16.8.2 ucn-consensus — in-house Raft <span class="rtag dist">dist</span><span class="rtag async">async</span></div>
+    <div class="leaf" data-why="Location-transparent actor messaging — an actor address works the same in-process or across the network, so failure handling is uniform.">16.8.3 ucn-rpc — actor RPC over QUIC <span class="rtag dist">dist</span><span class="rtag async">async</span></div>
+    <div class="leaf" data-why="Spreads parallel workloads across the cluster with work-stealing at the node level — the macro version of the executor." data-iso="Rescheduling on node death; idempotent task IDs make replay safe.">16.8.4 ucn-sched-dist — distributed work scheduler</div>
+    <div class="leaf">16.8.5 ucn-shard — consistent-hash sharding <span class="rtag dist">dist</span></div>
+  </div></details>
+
+  <!-- TIER 9 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 9 · Workspace & Build Orchestration «ucn-build-*» / xtask</summary><div class="children">
+    <div class="leaf" data-why="Build logic as a Rust binary, not shell scripts — cross-platform, type-checked, and language-pure.">16.9.1 ucn-xtask — cargo xtask build orchestrator</div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.9.2 ucn-depgraph — workspace graph + visualization</summary><div class="children">
+      <div class="leaf" data-why="Parses Cargo metadata into a DAG, enforces layering rules (no Tier-N → Tier-N+1 edges), and renders the graph." data-iso="Cycle detection fails the build — prevents the dependency tangles that make large workspaces fragile.">16.9.2.1 Cargo metadata → DAG <span class="rtag pure">pure</span></div>
+      <div class="leaf" data-iso="Mechanically enforces the blast-wall tiers in this very diagram.">16.9.2.2 Layer-violation lint (Tier discipline)</div>
+      <div class="leaf">16.9.2.3 SVG/DOT graph emitter</div>
+    </div></details>
+    <div class="leaf" data-why="Builds every feature combination to catch 'works only with default features' rot — a common large-workspace failure.">16.9.3 ucn-feature-matrix — combinatorial feature tester <span class="rtag test">test</span></div>
+    <div class="leaf" data-why="sccache-style caching, in-house, to keep nightly rebuilds fast across hundreds of crates.">16.9.4 ucn-cache-build — content-addressed build cache <span class="rtag pure">pure</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.9.5 ucn-ci — pipeline DSL + orchestrator</summary><div class="children">
+      <div class="leaf">16.9.5.1 Stage graph (parallel fan-out, gated merges) <span class="rtag dist">dist</span></div>
+      <div class="leaf" data-iso="Every *-unsafe crate must pass miri to merge.">16.9.5.2 miri UB stage (per unsafe crate) <span class="rtag test">test</span></div>
+      <div class="leaf">16.9.5.3 ASan/TSan/MSan stages <span class="rtag test">test</span><span class="rtag nightly">nightly</span></div>
+    </div></details>
+    <details class="l3"><summary><span class="arrow">▶</span>16.9.6 ucn-toolchain — nightly pin + -Z flag manifest</summary><div class="children">
+      <div class="leaf" data-why="Pins the exact nightly + the -Z flag set so 'works on my machine' failures are eliminated.">16.9.6.1 -Zbuild-std / -Zthreads=N / -Zsanitizer flags <span class="rtag nightly">nightly</span></div>
+      <div class="leaf">16.9.6.2 rust-toolchain.toml (exact nightly date)</div>
+    </div></details>
+  </div></details>
+
+  <!-- TIER 10 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 10 · Interfaces & Interactivity «ucn-ui-*»</summary><div class="children">
+    <div class="leaf" data-why="Self-contained CLI — zero parser dependency, full control over completion and help.">16.10.1 ucn-cli — in-house arg parser, no clap <span class="rtag pure">pure</span></div>
+    <div class="leaf">16.10.2 ucn-tui — terminal UI <span class="rtag pure">pure</span></div>
+    <div class="leaf" data-why="The web dashboard compiled to WebAssembly — the same Rust, no JS framework dependency, runs sandboxed in the browser.">16.10.3 ucn-wasm-app — browser UI → wasm32 <span class="rtag wasm">wasm</span><span class="rtag pure">pure</span></div>
+    <div class="leaf">16.10.4 ucn-api — HTTP/gRPC gateway <span class="rtag async">async</span></div>
+    <div class="leaf">16.10.5 ucn-repl — scriptable operator shell <span class="rtag pure">pure</span></div>
+  </div></details>
+
+  <!-- TIER 11 -->
+  <details class="l2 rust-tier"><summary><span class="arrow">▶</span>TIER 11 · Test · Verify · Chaos «ucn-test-*»</summary><div class="children">
+    <div class="leaf" data-why="A custom #[test] framework so each crate runs isolated, sharded, and per-tenant — replacing the default harness for full control.">16.11.1 ucn-test-harness — custom test framework <span class="rtag test">test</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="Shrinking property tester (no proptest dep) — generates adversarial inputs to find the failure before production does.">16.11.2 ucn-prop — property testing, in-house <span class="rtag test">test</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf" data-why="In-house fuzzing wired to every parser and the WASM validator — the front line against malformed-input crashes.">16.11.3 ucn-fuzz — coverage-guided fuzzer <span class="rtag test">test</span><span class="rtag unsafe">unsafe</span><span class="rtag nightly">nightly</span></div>
+    <details class="l3"><summary><span class="arrow">▶</span>16.11.4 ucn-chaos — fault injection</summary><div class="children">
+      <div class="leaf" data-why="Randomly kills actors, drops messages, and injects latency to prove failure isolation works." data-iso="Verifies the core claim of the whole design: kill anything, the rest keeps running.">16.11.4.1 Random actor/process killer <span class="rtag test">test</span><span class="rtag async">async</span></div>
+      <div class="leaf">16.11.4.2 Network partition / latency injector</div>
+      <div class="leaf" data-iso="Proves OOM paths degrade gracefully.">16.11.4.3 Allocator-failure injection</div>
+    </div></details>
+    <div class="leaf">16.11.5 ucn-bench — microbench, no criterion <span class="rtag test">test</span><span class="rtag nightly">nightly</span></div>
+    <div class="leaf">16.11.6 ucn-miri-suite — UB regression corpus <span class="rtag test">test</span><span class="rtag nightly">nightly</span></div>
+  </div></details>
+
+</div></details>
+
+
+</div><!-- end tree -->
+    <div class="noresult" id="noResult">⌀ NO MODULES MATCH YOUR QUERY</div>
+  </div>
+
+  <div class="footer">
+    UNICRON ARCHITECTURE BLUEPRINT V1 · <b id="f-modules">—</b> MODULES ACROSS <b id="f-pillars">—</b> PILLARS ·
+    CONCEPTUAL DESIGN DOCUMENT · TRACK PROGRESS LOCALLY · <b>/</b> SEARCH · <b>E</b> EXPAND · <b>C</b> COLLAPSE
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="why-box" id="whyBox"><div class="wh">WHY THIS SPLIT</div><div id="whyText"></div><div id="isoText" class="iso-line"></div></div>
+
+<script>
+(function () {
+  "use strict";
+  var PILLAR_COLORS = {
+    off:'var(--accent3)', def:'var(--accent2)', ai:'var(--accent5)', col:'var(--accent4)',
+    cmp:'var(--accent7)', inf:'var(--accent6)', gov:'var(--accent-gov)', plat:'var(--accent8)', rust:'#ff6600'
+  };
+  var STORE_KEY = 'unicron-status-v2';
+  var status = {};            // id -> 'plan'|'active'|'done'
+  var allDetails = [].slice.call(document.querySelectorAll('details'));
+  var allLeaves  = [].slice.call(document.querySelectorAll('.leaf'));
+  var pillars    = [].slice.call(document.querySelectorAll('.l1'));
+
+  /* ---------- persistence ---------- */
+  function load() { try { status = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { status = {}; } }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(status)); } catch (e) {} }
+  load();
+
+  /* ---------- id helper: use the leading dotted code ---------- */
+  function codeOf(text) {
+    var m = text.match(/^\s*([0-9]+(?:\.[0-9]+)*)/);
+    return m ? m[1] : text.trim().slice(0, 60);
+  }
+
+  /* ---------- prep summaries: arrow ids, anchors, count badges ---------- */
+  allDetails.forEach(function (d) {
+    var sum = d.querySelector(':scope > summary');
+    if (!sum) return;
+    var label = sum.textContent.trim();
+    var code = codeOf(label);
+    d.dataset.code = code;
+    d.id = d.id || ('n-' + code.replace(/\./g, '-'));
+    // count leaves beneath
+    var leaves = d.querySelectorAll('.leaf').length;
+    if (leaves > 0 && !d.classList.contains('l0')) {
+      var b = document.createElement('span');
+      b.className = 'cbadge';
+      b.textContent = leaves;
+      sum.appendChild(b);
+    }
+    // deep-link on summary click (not toggling arrow specifically)
+    sum.addEventListener('click', function () {
+      if (history.replaceState) history.replaceState(null, '', '#' + d.id);
+    });
+  });
+
+  /* ---------- prep leaves: status dot + restructure text ---------- */
+  allLeaves.forEach(function (leaf) {
+    var raw = leaf.textContent;
+    leaf.textContent = '';
+    var code = codeOf(raw);
+    leaf.dataset.code = code;
+    leaf.id = 'm-' + code.replace(/\./g, '-');
+
+    var dot = document.createElement('span');
+    dot.className = 'sdot';
+    dot.title = 'Click to cycle status: planned → in-progress → shipped';
+
+    var lc = document.createElement('span'); lc.className = 'lc';
+    var txt = document.createElement('span'); txt.className = 'ltxt'; txt.textContent = raw.replace(/^\s*◦\s*/, '');
+
+    leaf.appendChild(dot); leaf.appendChild(lc); leaf.appendChild(txt);
+    leaf._txt = txt; leaf._raw = txt.textContent;
+
+    if (status[code]) leaf.setAttribute('data-st', status[code]);
+
+    dot.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var order = ['', 'plan', 'active', 'done'];
+      var cur = leaf.getAttribute('data-st') || '';
+      var next = order[(order.indexOf(cur) + 1) % order.length];
+      if (next) { leaf.setAttribute('data-st', next); status[code] = next; }
+      else { leaf.removeAttribute('data-st'); delete status[code]; }
+      save(); recalc();
+    });
+  });
+
+  /* ---------- live stats ---------- */
+  function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+  var counts = {
+    pillars: pillars.length,
+    domains: document.querySelectorAll('.l2').length,
+    groups:  document.querySelectorAll('.l3').length,
+    modules: allLeaves.length
+  };
+  setText('st-pillars', counts.pillars);
+  setText('st-domains', counts.domains);
+  setText('st-groups',  counts.groups);
+  setText('st-modules', counts.modules);
+  setText('f-modules',  counts.modules);
+  setText('f-pillars',  counts.pillars);
+  document.getElementById('q').placeholder = 'Search ' + counts.modules + ' modules…  ( / to focus )';
+
+  /* ---------- pillar chips + progress bars ---------- */
+  var chipsEl = document.getElementById('chips');
+  var barsEl = document.getElementById('bars');
+  pillars.forEach(function (p) {
+    var cls = [].slice.call(p.classList).find(function (c) { return PILLAR_COLORS[c]; });
+    var color = PILLAR_COLORS[cls] || 'var(--accent)';
+    var sumtxt = p.querySelector(':scope > summary').textContent;
+    var short = sumtxt.replace(/^[^A-Za-z0-9]*/, '').replace(/\s*\d+$/, '');
+    var pm = short.match(/PILLAR\s*(\d+)\s*[—-]\s*(.+)/i);
+    var num = pm ? pm[1] : '';
+    var name = pm ? pm[2].trim() : short.trim();
+    p._color = color; p._num = num; p._name = name;
+
+    // chip
+    var chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = '<span class="d" style="background:' + color + '"></span>P' + num;
+    chip.title = name;
+    chip.addEventListener('click', function () {
+      p.open = true;
+      p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    chipsEl.appendChild(chip);
+    p._chip = chip;
+
+    // bar
+    var row = document.createElement('div'); row.className = 'barrow';
+    row.innerHTML = '<span class="nm">P' + num + '</span>' +
+      '<span class="track"><span class="fill" style="background:' + color + '"></span></span>' +
+      '<span class="vv"></span>';
+    row.title = name;
+    row.addEventListener('click', function () { p.open = true; p.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    barsEl.appendChild(row);
+    p._fill = row.querySelector('.fill');
+    p._vv = row.querySelector('.vv');
+  });
+
+  /* ---------- progress recalc ---------- */
+  function recalc() {
+    var totalDone = 0;
+    pillars.forEach(function (p) {
+      var leaves = p.querySelectorAll('.leaf');
+      var done = p.querySelectorAll('.leaf[data-st="done"]').length;
+      totalDone += done;
+      var pct = leaves.length ? Math.round(done / leaves.length * 100) : 0;
+      p._fill.style.width = pct + '%';
+      p._vv.textContent = done + '/' + leaves.length;
+    });
+    var overall = counts.modules ? totalDone / counts.modules : 0;
+    var C = 251.3;
+    document.getElementById('ringFill').style.strokeDashoffset = (C * (1 - overall)).toFixed(1);
+    document.getElementById('ringPct').textContent = Math.round(overall * 100) + '%';
+    setText('st-done', totalDone);
+  }
+
+  /* ---------- expand / collapse ---------- */
+  function expandAll() { allDetails.forEach(function (d) { d.open = true; }); }
+  function collapseAll() { allDetails.forEach(function (d) { if (!d.classList.contains('l0')) d.open = false; }); }
+  function expandToLevel(n) {
+    allDetails.forEach(function (d) {
+      if (d.classList.contains('l0')) { d.open = true; return; }
+      var lvl = d.classList.contains('l1') ? 1 : d.classList.contains('l2') ? 2 : d.classList.contains('l3') ? 3 : 4;
+      d.open = lvl <= n;
+    });
+  }
+  document.getElementById('expandAll').addEventListener('click', expandAll);
+  document.getElementById('collapseAll').addEventListener('click', collapseAll);
+  [].slice.call(document.querySelectorAll('.seg button')).forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.seg button').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      expandToLevel(parseInt(b.dataset.lvl, 10));
+    });
+  });
+
+  /* ---------- search ---------- */
+  var q = document.getElementById('q');
+  var searchBox = document.getElementById('searchBox');
+  var matchCount = document.getElementById('matchCount');
+  var noResult = document.getElementById('noResult');
+  var clrBtn = document.getElementById('clrBtn');
+  var savedOpen = null;
+
+  function clearMarks(el) {
+    var marks = el.querySelectorAll('mark');
+    marks.forEach(function (m) { var t = document.createTextNode(m.textContent); m.parentNode.replaceChild(t, m); });
+    el.normalize && el.normalize();
+  }
+  function highlight(node, term) {
+    var txt = node._raw;
+    var idx = txt.toLowerCase().indexOf(term);
+    if (idx < 0) { node._txt.textContent = txt; return; }
+    node._txt.innerHTML = '';
+    node._txt.appendChild(document.createTextNode(txt.slice(0, idx)));
+    var mk = document.createElement('mark'); mk.textContent = txt.slice(idx, idx + term.length);
+    node._txt.appendChild(mk);
+    node._txt.appendChild(document.createTextNode(txt.slice(idx + term.length)));
+  }
+
+  function runSearch(term) {
+    term = term.trim().toLowerCase();
+    searchBox.classList.toggle('has-val', term.length > 0);
+
+    if (!term) {
+      // restore
+      allLeaves.forEach(function (l) { l.classList.remove('hide', 'hit'); l._txt.textContent = l._raw; });
+      allDetails.forEach(function (d) { d.classList.remove('hide'); var s = d.querySelector(':scope > summary'); if (s) { s.classList.remove('hit'); clearMarks(s); } });
+      matchCount.textContent = '';
+      noResult.classList.remove('show');
+      if (savedOpen) { allDetails.forEach(function (d, i) { d.open = savedOpen[i]; }); savedOpen = null; }
+      return;
+    }
+    if (!savedOpen) savedOpen = allDetails.map(function (d) { return d.open; });
+
+    var hits = 0;
+    // reset
+    allLeaves.forEach(function (l) { l.classList.add('hide'); l.classList.remove('hit'); l._txt.textContent = l._raw; });
+    allDetails.forEach(function (d) { d.classList.add('hide'); var s = d.querySelector(':scope > summary'); if (s) { s.classList.remove('hit'); clearMarks(s); } });
+
+    function reveal(el) {
+      el.classList.remove('hide');
+      var p = el.parentElement;
+      while (p && p !== document.body) {
+        if (p.tagName === 'DETAILS') { p.classList.remove('hide'); p.open = true; }
+        p = p.parentElement;
+      }
+    }
+
+    // match leaves
+    allLeaves.forEach(function (l) {
+      if (l._raw.toLowerCase().indexOf(term) >= 0) {
+        hits++; reveal(l); l.classList.add('hit'); highlight(l, term);
+      }
+    });
+    // match summaries (branch names)
+    allDetails.forEach(function (d) {
+      var s = d.querySelector(':scope > summary'); if (!s) return;
+      var label = (d.dataset.code + ' ' + s.textContent).toLowerCase();
+      var clean = s.childNodes;
+      // build searchable text from summary excluding badge
+      var stext = '';
+      [].slice.call(s.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) stext += n.textContent;
+        else if (n.classList && !n.classList.contains('cbadge') && !n.classList.contains('arrow')) stext += n.textContent;
+      });
+      if (stext.toLowerCase().indexOf(term) >= 0) {
+        hits++; reveal(d); d.open = true; s.classList.add('hit');
+        // highlight inside the text nodes of summary
+        [].slice.call(s.childNodes).forEach(function (n) {
+          if (n.nodeType === 3 && n.textContent.toLowerCase().indexOf(term) >= 0) {
+            var t = n.textContent; var i = t.toLowerCase().indexOf(term);
+            var frag = document.createDocumentFragment();
+            frag.appendChild(document.createTextNode(t.slice(0, i)));
+            var mk = document.createElement('mark'); mk.textContent = t.slice(i, i + term.length);
+            frag.appendChild(mk);
+            frag.appendChild(document.createTextNode(t.slice(i + term.length)));
+            s.replaceChild(frag, n);
+          }
+        });
+      }
+    });
+
+    matchCount.textContent = hits + ' match' + (hits === 1 ? '' : 'es');
+    noResult.classList.toggle('show', hits === 0);
+  }
+
+  var t;
+  q.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { runSearch(q.value); }, 90); });
+  clrBtn.addEventListener('click', function () { q.value = ''; runSearch(''); q.focus(); });
+
+  /* ---------- scrollspy for chips ---------- */
+  var spy = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        pillars.forEach(function (p) { p._chip.classList.toggle('active', p === e.target); });
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  pillars.forEach(function (p) { spy.observe(p); });
+
+  /* ---------- density ---------- */
+  document.getElementById('densityBtn').addEventListener('click', function () {
+    var on = document.body.classList.toggle('compact');
+    this.textContent = on ? '▣ COMFORTABLE' : '▢ COMPACT';
+  });
+
+  /* ---------- export / reset ---------- */
+  function toast(msg) {
+    var el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+    clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var payload = { project: 'UNICRON', exported: new Date().toISOString(), totals: counts, status: status };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'unicron-progress.json'; a.click(); URL.revokeObjectURL(a.href);
+    toast('✓ Progress exported');
+  });
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    if (!confirm('Reset all build-status markers?')) return;
+    status = {}; save();
+    allLeaves.forEach(function (l) { l.removeAttribute('data-st'); });
+    recalc(); toast('↺ Status cleared');
+  });
+
+  /* ---------- keyboard ---------- */
+  document.addEventListener('keydown', function (e) {
+    if (e.target === q) { if (e.key === 'Escape') { q.value = ''; runSearch(''); q.blur(); } return; }
+    if (e.key === '/') { e.preventDefault(); q.focus(); }
+    else if (e.key === 'e' || e.key === 'E') expandAll();
+    else if (e.key === 'c' || e.key === 'C') collapseAll();
+    else if (e.key === '1') expandToLevel(1);
+    else if (e.key === '2') expandToLevel(2);
+    else if (e.key === '3') expandToLevel(3);
+  });
+
+  /* ---------- staggered pillar reveal ---------- */
+  pillars.forEach(function (p, i) { p.style.animationDelay = (i * 70) + 'ms'; });
+
+  /* ---------- deep link on load ---------- */
+  if (location.hash) {
+    var target = document.getElementById(location.hash.slice(1));
+    if (target) {
+      var n = target; while (n && n !== document.body) { if (n.tagName === 'DETAILS') n.open = true; n = n.parentElement; }
+      setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200);
+    }
+  }
+
+  recalc();
+})();
+
+/* ---------- why-box tooltips for Rust modules ---------- */
+(function() {
+  var wb = document.getElementById('whyBox');
+  var whyText = document.getElementById('whyText');
+  var isoText = document.getElementById('isoText');
+  var whyTimer;
+  document.querySelectorAll('.leaf[data-why]').forEach(function(el) {
+    el.classList.add('has-why');
+    el.addEventListener('mouseenter', function(e) {
+      var why = el.dataset.why; var iso = el.dataset.iso;
+      whyText.textContent = why || '';
+      isoText.textContent = iso ? '⚡ ISOLATION: ' + iso : '';
+      isoText.style.display = iso ? '' : 'none';
+      wb.style.left = Math.min(e.clientX + 14, window.innerWidth - 400) + 'px';
+      wb.style.top = Math.max(e.clientY - 10, 8) + 'px';
+      clearTimeout(whyTimer);
+      whyTimer = setTimeout(function() { wb.classList.add('show'); }, 120);
+    });
+    el.addEventListener('mouseleave', function() {
+      clearTimeout(whyTimer); wb.classList.remove('show');
+    });
+    el.addEventListener('mousemove', function(e) {
+      wb.style.left = Math.min(e.clientX + 14, window.innerWidth - 400) + 'px';
+      wb.style.top = Math.max(e.clientY - 10, 8) + 'px';
+    });
+  });
+})();
+</script>
+</body>
+</html>
