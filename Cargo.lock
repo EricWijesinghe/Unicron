@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "unicron-core"
 version = "0.1.0"
+
+[[package]]
+name = "unicron-scan"
+version = "0.1.0"
+dependencies = [
+ "unicron-core",
+]
